@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+}
+
+.prose {
+  @apply text-gray-700 leading-relaxed max-w-none;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  @apply text-gray-900 font-semibold mt-8 mb-4;
+}
+
+.prose h1 {
+  @apply text-3xl;
+}
+
+.prose h2 {
+  @apply text-2xl;
+}
+
+.prose h3 {
+  @apply text-xl;
+}
+
+.prose p {
+  @apply my-4;
+}
+
+.prose a {
+  @apply text-primary-600 hover:text-primary-700 font-medium;
+}
+
+.prose strong {
+  @apply text-gray-900 font-semibold;
+}
+
+.prose code {
+  @apply text-red-600 bg-gray-100 px-1 py-0.5 rounded text-sm font-mono;
+}
+
+.prose pre {
+  @apply bg-gray-50 border border-gray-200 rounded-lg p-6 my-6 overflow-x-auto;
+}
+
+.prose pre code {
+  @apply text-gray-800 bg-transparent p-0;
+}
+
+.prose blockquote {
+  @apply border-l-2 border-r-2 border-primary-600 bg-gray-50 px-6 py-2 my-6 italic text-gray-600 text-center;
+}
+
+.prose blockquote p {
+  @apply my-1;
+}
+
+.prose ul,
+.prose ol {
+  @apply my-4 pl-6;
+}
+
+.prose li {
+  @apply my-2;
+}
+
+.prose table {
+  @apply w-full my-6 border border-gray-200;
+}
+
+.prose th,
+.prose td {
+  @apply p-3 text-left border-b border-gray-200;
+}
+
+.prose th {
+  @apply bg-gray-50 font-medium text-gray-900;
+}
+
+.prose hr {
+  @apply border-gray-200 my-8;
+}
+
+.prose img {
+  @apply max-w-full h-auto my-6 rounded-lg;
+} 

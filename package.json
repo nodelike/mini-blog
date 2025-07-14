@@ -1,0 +1,26 @@
+{
+  "name": "mini-blog",
+  "version": "1.0.0",
+  "description": "A simple and clean blog application built with Go, Templ, HTMX, and Tailwind CSS.",
+  "main": "index.js",
+  "scripts": {
+    "build-css": "tailwindcss -i styles.css -o static/styles.css --watch",
+    "build": "tailwindcss -i styles.css -o static/styles.css",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nodelike/mini-blog.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nodelike/mini-blog/issues"
+  },
+  "homepage": "https://github.com/nodelike/mini-blog#readme",
+  "dependencies": {
+    "tailwindcss": "^4.0.0"
+  }
+}

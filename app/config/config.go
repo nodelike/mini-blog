@@ -2,20 +2,34 @@ package config
 
 import (
 	"log"
-	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
 type Config struct {
 	DB struct {
-		Host, Port, User, Password, Name, SSLMode string
+		Host     string `envconfig:"DB_HOST" default:"localhost"`
+		Port     string `envconfig:"DB_PORT" default:"5432"`
+		User     string `envconfig:"DB_USER" default:"postgres"`
+		Password string `envconfig:"DB_PASSWORD" default:"password"`
+		Name     string `envconfig:"DB_NAME" default:"mini_blog"`
+		SSLMode  string `envconfig:"DB_SSL_MODE" default:"disable"`
 	}
-	JWT     struct{ Secret string }
-	Session struct{ Key string }
-	Server  struct{ Port string }
-	Auth    struct{ AdminEmail, ResendAPIKey string }
-	Env     string
+	JWT struct {
+		Secret string `envconfig:"JWT_SECRET" default:"your-secret-key-change-this-in-production"`
+	}
+	Session struct {
+		Key string `envconfig:"SESSION_KEY" default:"your-session-secret-32-characters-long"`
+	}
+	Server struct {
+		Port string `envconfig:"PORT" default:"8080"`
+	}
+	Auth struct {
+		AdminEmail   string `envconfig:"ADMIN_EMAIL"`
+		ResendAPIKey string `envconfig:"RESEND_API_KEY"`
+	}
+	Env string `envconfig:"ENV" default:"development"`
 }
 
 func Load() *Config {
@@ -23,41 +37,10 @@ func Load() *Config {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	defaults := map[string]string{
-		"DB_HOST":     "localhost",
-		"DB_PORT":     "5432",
-		"DB_USER":     "postgres",
-		"DB_PASSWORD": "password",
-		"DB_NAME":     "mini_blog",
-		"DB_SSL_MODE": "disable",
-		"JWT_SECRET":  "your-secret-key-change-this-in-production",
-		"SESSION_KEY": "your-session-secret-32-characters-long",
-		"PORT":        "8080",
-		"ENV":         "development",
+	var cfg Config
+	if err := envconfig.Process("", &cfg); err != nil {
+		log.Fatal("Error processing environment variables:", err)
 	}
 
-	getEnv := func(key string) string {
-		if value := os.Getenv(key); value != "" {
-			return value
-		}
-		return defaults[key]
-	}
-
-	cfg := &Config{}
-
-	cfg.DB.Host = getEnv("DB_HOST")
-	cfg.DB.Port = getEnv("DB_PORT")
-	cfg.DB.User = getEnv("DB_USER")
-	cfg.DB.Password = getEnv("DB_PASSWORD")
-	cfg.DB.Name = getEnv("DB_NAME")
-	cfg.DB.SSLMode = getEnv("DB_SSL_MODE")
-
-	cfg.JWT.Secret = getEnv("JWT_SECRET")
-	cfg.Session.Key = getEnv("SESSION_KEY")
-	cfg.Server.Port = getEnv("PORT")
-	cfg.Auth.AdminEmail = os.Getenv("ADMIN_EMAIL")
-	cfg.Auth.ResendAPIKey = os.Getenv("RESEND_API_KEY")
-	cfg.Env = getEnv("ENV")
-
-	return cfg
+	return &cfg
 }

@@ -17,6 +17,8 @@ build-errors.log
 .env.local
 .env.*.local
 
+node_modules/
+
 # IDE
 .vscode/
 .idea/
@@ -42,4 +44,5 @@ Thumbs.db
 # Build artifacts
 mini-blog
 dist/
-build/ 
+build/
+static/ 

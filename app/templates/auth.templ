@@ -2,9 +2,8 @@ package templates
 
 templ SignupForm(errorMessage ...string) {
 	<div class="max-w-md mx-auto mt-8">
-		<div class="bg-white rounded-lg shadow-md p-6">
+		<div class="bg-white border border-gray-200 p-6">
 			<h2 id="form-title" class="text-2xl font-bold text-center text-gray-900 mb-6">Sign Up</h2>
-			
 			<div id="signup-container">
 				@SignupFormContent(errorMessage...)
 			</div>
@@ -14,35 +13,35 @@ templ SignupForm(errorMessage ...string) {
 
 templ SignupFormContent(errorMessage ...string) {
 	if len(errorMessage) > 0 && errorMessage[0] != "" {
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+		<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-4">
 			{ errorMessage[0] }
 		</div>
 	}
 	
-	<form hx-post="/signup" hx-target="#signup-container" hx-swap="innerHTML">
-		<div class="mb-4">
+	<form hx-post="/signup" hx-target="#signup-container" hx-swap="innerHTML" class="space-y-4">
+		<div>
 			<label for="name" class="block text-sm font-medium text-gray-700 mb-2">Name</label>
 			<input 
 				type="text" 
 				id="name" 
 				name="name" 
 				required
-				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 		
-		<div class="mb-4">
+		<div>
 			<label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
 			<input 
 				type="email" 
 				id="email" 
 				name="email" 
 				required
-				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 		
-		<div class="mb-4">
+		<div>
 			<label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
 			<input 
 				type="password" 
@@ -50,11 +49,11 @@ templ SignupFormContent(errorMessage ...string) {
 				name="password" 
 				required
 				minlength="6"
-				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 		
-		<div class="mb-6">
+		<div>
 			<label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
 			<input 
 				type="password" 
@@ -62,29 +61,25 @@ templ SignupFormContent(errorMessage ...string) {
 				name="confirm_password" 
 				required
 				minlength="6"
-				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 		
-		<button 
-			type="submit" 
-			class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-		>
+		<button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
 			Sign Up
 		</button>
 		
-		<p class="mt-4 text-center text-sm text-gray-600">
+		<p class="text-center text-sm text-gray-600">
 			Already have an account? 
-			<a href="/login" class="text-blue-600 hover:text-blue-800">Login here</a>
+			<a href="/login" class="text-blue-600 hover:text-blue-700">Login here</a>
 		</p>
 	</form>
 }
 
 templ LoginForm(errorMessage ...string) {
 	<div class="max-w-md mx-auto mt-8">
-		<div class="bg-white rounded-lg shadow-md p-6">
+		<div class="bg-white border border-gray-200 p-6">
 			<h2 class="text-2xl font-bold text-center text-gray-900 mb-6">Login</h2>
-			
 			<div id="login-container">
 				@LoginFormContent(errorMessage...)
 			</div>
@@ -94,58 +89,53 @@ templ LoginForm(errorMessage ...string) {
 
 templ LoginFormContent(errorMessage ...string) {
 	if len(errorMessage) > 0 && errorMessage[0] != "" {
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+		<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-4">
 			{ errorMessage[0] }
 		</div>
 	}
 	
-	<form hx-post="/login" hx-target="#login-container" hx-swap="innerHTML">
-		<div class="mb-4">
+	<form hx-post="/login" hx-target="#login-container" hx-swap="innerHTML" class="space-y-4">
+		<div>
 			<label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
 			<input 
 				type="email" 
 				id="email" 
 				name="email" 
 				required
-				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 		
-		<div class="mb-6">
+		<div>
 			<label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
 			<input 
 				type="password" 
 				id="password" 
 				name="password" 
 				required
-				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
 		
-		<button 
-			type="submit" 
-			class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-		>
+		<button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
 			Login
 		</button>
 		
-		<p class="mt-4 text-center text-sm text-gray-600">
+		<p class="text-center text-sm text-gray-600">
 			Don't have an account? 
-			<a href="/signup" class="text-blue-600 hover:text-blue-800">Sign up here</a>
+			<a href="/signup" class="text-blue-600 hover:text-blue-700">Sign up here</a>
 		</p>
 	</form>
 }
 
 templ OTPForm(email string, errorMessage ...string) {
 	<div class="max-w-md mx-auto mt-8">
-		<div class="bg-white rounded-lg shadow-md p-6">
+		<div class="bg-white border border-gray-200 p-6">
 			<h2 class="text-2xl font-bold text-center text-gray-900 mb-6">Verify Your Email</h2>
-			
 			<div class="text-center mb-6">
 				<p class="text-gray-600">We've sent a verification code to:</p>
 				<p class="font-semibold text-gray-900">{ email }</p>
 			</div>
-			
 			<div id="otp-container">
 				@OTPFormContent(email, errorMessage...)
 			</div>
@@ -164,46 +154,41 @@ templ OTPFormContent(email string, errorMessage ...string) {
 	</div>
 	
 	if len(errorMessage) > 0 && errorMessage[0] != "" {
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+		<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-4">
 			{ errorMessage[0] }
 		</div>
 	}
 	
-	<div id="otp-container">
-		<form hx-post="/verify-otp" hx-target="#otp-container" hx-swap="innerHTML">
-			<div class="mb-6">
-				<label for="otp" class="block text-sm font-medium text-gray-700 mb-2">Enter 6-digit code</label>
-				<input 
-					type="text" 
-					id="otp" 
-					name="otp" 
-					required
-					maxlength="6"
-					pattern="[0-9]{6}"
-					class="w-full px-3 py-2 text-center text-2xl font-mono border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-					placeholder="123456"
-				/>
-			</div>
-			
+	<form hx-post="/verify-otp" hx-target="#otp-container" hx-swap="innerHTML" class="space-y-4">
+		<div>
+			<label for="otp" class="block text-sm font-medium text-gray-700 mb-2">Enter 6-digit code</label>
+			<input 
+				type="text" 
+				id="otp" 
+				name="otp" 
+				required
+				maxlength="6"
+				pattern="[0-9]{6}"
+				class="w-full px-3 py-2 text-center text-2xl font-mono border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				placeholder="123456"
+			/>
+		</div>
+		
+		<button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+			Verify Email
+		</button>
+		
+		<div class="text-center">
+			<p class="text-sm text-gray-600">Didn't receive the code?</p>
 			<button 
-				type="submit" 
-				class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				type="button"
+				hx-post="/resend-otp"
+				hx-target="#resend-message"
+				class="text-blue-600 hover:text-blue-700 text-sm font-medium"
 			>
-				Verify Email
+				Resend Code
 			</button>
-			
-			<div class="mt-4 text-center">
-				<p class="text-sm text-gray-600">Didn't receive the code?</p>
-				<button 
-					type="button"
-					hx-post="/resend-otp"
-					hx-target="#resend-message"
-					class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-				>
-					Resend Code
-				</button>
-				<div id="resend-message" class="mt-2"></div>
-			</div>
-		</form>
-	</div>
+			<div id="resend-message" class="mt-2"></div>
+		</div>
+	</form>
 } 

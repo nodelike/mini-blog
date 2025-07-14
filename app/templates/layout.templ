@@ -10,38 +10,31 @@ templ Layout(title string, content templ.Component, user ...*models.User) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<title>{ title } - Mini Blog</title>
 		<script src="https://unpkg.com/htmx.org@1.9.10"></script>
-		<script src="https://cdn.tailwindcss.com"></script>
-		<style>
-			body { 
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-			}
-		</style>
+		<link href="/static/styles.css" rel="stylesheet"/>
 	</head>
-	<body class="bg-gray-50 text-gray-900">
-		<nav class="bg-white shadow-sm border-b">
-			<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div class="flex justify-between h-16">
-					<div class="flex items-center">
-						<a href="/" class="text-xl font-bold text-gray-900">Mini Blog</a>
-					</div>
-					<div class="flex items-center space-x-4">
-						<a href="/" class="text-gray-700 hover:text-gray-900">Home</a>
-						<a href="/posts" class="text-gray-700 hover:text-gray-900">Posts</a>
+	<body class="bg-white text-gray-900">
+		<nav class="bg-white border-b border-gray-200">
+			<div class="max-w-4xl mx-auto px-6">
+				<div class="flex justify-between items-center h-16">
+					<a href="/" class="text-xl font-bold text-gray-900">Mini Blog</a>
+					<div class="flex items-center space-x-6">
+						<a href="/" class="text-gray-600 hover:text-gray-900">Home</a>
+						<a href="/posts" class="text-gray-600 hover:text-gray-900">Posts</a>
 						if len(user) > 0 && user[0] != nil {
 							if user[0].IsAdmin() {
-								<a href="/admin/dashboard" class="text-gray-700 hover:text-gray-900 font-medium">Admin</a>
+								<a href="/admin/dashboard" class="text-gray-600 hover:text-gray-900">Admin</a>
 							}
-							<span class="text-gray-700">Hi, { user[0].Name }</span>
-							<a href="/logout" class="text-gray-700 hover:text-gray-900">Logout</a>
+							<span class="text-gray-600">{ user[0].Name }</span>
+							<a href="/logout" class="text-gray-600 hover:text-gray-900">Logout</a>
 						} else {
-							<a href="/login" class="text-gray-700 hover:text-gray-900">Login</a>
-							<a href="/signup" class="text-gray-700 hover:text-gray-900">Sign Up</a>
+							<a href="/login" class="text-gray-600 hover:text-gray-900">Login</a>
+							<a href="/signup" class="bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition">Sign Up</a>
 						}
 					</div>
 				</div>
 			</div>
 		</nav>
-		<main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<main class="max-w-4xl mx-auto px-6 py-8">
 			@content
 		</main>
 	</body>

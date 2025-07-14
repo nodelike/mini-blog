@@ -23,6 +23,9 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
+	// Static files
+	e.Static("/static", "static")
+
 	h := handlers.NewHandler()
 	auth := handlers.NewAuthHandler(cfg)
 	adminHandler := handlers.NewAdminHandler()

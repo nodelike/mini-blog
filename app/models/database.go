@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"mini-blog/app/config"
+	"strings"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -13,15 +14,20 @@ import (
 var DB *gorm.DB
 
 func ConnectDB(cfg *config.Config) {
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		cfg.DB.Host,
-		cfg.DB.User,
-		cfg.DB.Password,
-		cfg.DB.Name,
-		cfg.DB.Port,
-		cfg.DB.SSLMode,
-	)
+	var dsnParts []string
+
+	dsnParts = append(dsnParts, fmt.Sprintf("host=%s", cfg.DB.Host))
+	dsnParts = append(dsnParts, fmt.Sprintf("user=%s", cfg.DB.User))
+	dsnParts = append(dsnParts, fmt.Sprintf("dbname=%s", cfg.DB.Name))
+	dsnParts = append(dsnParts, fmt.Sprintf("port=%s", cfg.DB.Port))
+	dsnParts = append(dsnParts, fmt.Sprintf("sslmode=%s", cfg.DB.SSLMode))
+
+	// Only add password if it's not empty
+	if cfg.DB.Password != "" {
+		dsnParts = append(dsnParts, fmt.Sprintf("password=%s", cfg.DB.Password))
+	}
+
+	dsn := strings.Join(dsnParts, " ")
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
