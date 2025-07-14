@@ -4,8 +4,8 @@
   "description": "A simple and clean blog application built with Go, Templ, HTMX, and Tailwind CSS.",
   "main": "index.js",
   "scripts": {
-    "build-css": "tailwindcss -i styles.css -o static/styles.css --watch",
-    "build": "tailwindcss -i styles.css -o static/styles.css",
+    "build-css": "tailwindcss -i app/templates/styles.css -o static/styles.css --watch",
+    "build": "tailwindcss -i app/templates/styles.css -o static/styles.css",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

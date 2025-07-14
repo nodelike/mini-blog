@@ -54,7 +54,7 @@
 }
 
 .prose blockquote {
-  @apply border-l-2 border-r-2 border-primary-600 bg-gray-50 px-6 py-2 my-6 italic text-gray-600 text-center;
+  @apply border-l-2 border-r-2 border-primary-600 px-6 py-2 my-6 italic text-gray-600 text-center;
 }
 
 .prose blockquote p {
