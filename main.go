@@ -18,70 +18,40 @@ func main() {
 	models.CreateInitialAdmin(cfg)
 
 	e := echo.New()
-
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-
-	// Static files
 	e.Static("/static", "static")
 
-	h := handlers.NewHandler()
-	auth := handlers.NewAuthHandler(cfg)
-	adminHandler := handlers.NewAdminHandler()
+	h := handlers.NewBaseHandler(cfg)
 
-	e.GET("/", func(c echo.Context) error {
-		return h.Home(c, auth.GetCurrentUser(c))
-	})
-	e.GET("/posts", func(c echo.Context) error {
-		return h.PostsList(c, auth.GetCurrentUser(c))
-	})
-	e.GET("/posts/:slug", func(c echo.Context) error {
-		return h.PostView(c, auth.GetCurrentUser(c))
-	})
+	// Public routes
+	public := e.Group("")
+	public.GET("/", h.Home)
+	public.GET("/posts", h.Posts)
+	public.GET("/posts/:slug", h.PostView)
 
-	e.GET("/signup", auth.SignupPage)
-	e.POST("/signup", auth.Signup)
-	e.GET("/login", auth.LoginPage)
-	e.POST("/login", auth.Login)
-	e.POST("/verify-otp", auth.VerifyOTP)
-	e.POST("/resend-otp", auth.ResendOTP)
-	e.GET("/logout", auth.Logout)
+	// Auth routes
+	auth := e.Group("")
+	auth.GET("/signup", h.SignupPage)
+	auth.POST("/signup", h.Signup)
+	auth.GET("/login", h.LoginPage)
+	auth.POST("/login", h.Login)
+	auth.POST("/verify-otp", h.VerifyOTP)
+	auth.POST("/resend-otp", h.ResendOTP)
+	auth.GET("/logout", h.Logout)
 
-	admin := e.Group("/admin")
-	admin.Use(auth.RequireAdmin)
+	// Admin routes
+	admin := e.Group("/admin", h.RequireAdmin)
+	admin.GET("/dashboard", h.AdminDashboard)
+	admin.POST("/users/:id/role", h.AdminUpdateUserRole)
 
-	admin.GET("/dashboard", func(c echo.Context) error {
-		return adminHandler.Dashboard(c, c.Get("user").(*models.User))
-	})
-	admin.GET("/users", func(c echo.Context) error {
-		return adminHandler.UsersList(c, c.Get("user").(*models.User))
-	})
-	admin.POST("/users/:id/role", func(c echo.Context) error {
-		return adminHandler.UpdateUserRole(c, c.Get("user").(*models.User))
-	})
-	admin.GET("/stats", func(c echo.Context) error {
-		return adminHandler.Stats(c, c.Get("user").(*models.User))
-	})
-
-	admin.GET("/posts", func(c echo.Context) error {
-		return h.AdminPostsList(c, c.Get("user").(*models.User))
-	})
-	admin.GET("/posts/new", func(c echo.Context) error {
-		return h.AdminPostNew(c, c.Get("user").(*models.User))
-	})
-	admin.GET("/posts/:id/edit", func(c echo.Context) error {
-		return h.AdminPostEdit(c, c.Get("user").(*models.User))
-	})
-	admin.POST("/posts", func(c echo.Context) error {
-		return h.AdminPostCreate(c, c.Get("user").(*models.User))
-	})
-	admin.PUT("/posts/:id", func(c echo.Context) error {
-		return h.AdminPostUpdate(c, c.Get("user").(*models.User))
-	})
-	admin.DELETE("/posts/:id", func(c echo.Context) error {
-		return h.AdminPostDelete(c, c.Get("user").(*models.User))
-	})
+	// Admin post routes
+	admin.GET("/posts/new", h.AdminPostNew)
+	admin.GET("/posts/:id/edit", h.AdminPostEdit)
+	admin.POST("/posts", h.AdminPostCreate)
+	admin.PUT("/posts/:id", h.AdminPostUpdate)
+	admin.DELETE("/posts/:id", h.AdminPostDelete)
 
 	log.Printf("Server starting on port %s", cfg.Server.Port)
 	log.Fatal(e.Start(":" + cfg.Server.Port))

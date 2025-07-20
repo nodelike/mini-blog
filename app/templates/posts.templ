@@ -4,48 +4,71 @@ import (
 	"mini-blog/app/models"
 	"mini-blog/app/services"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
-templ PostsList(posts []models.Post, user ...*models.User) {
+templ PostsList(posts []models.Post, title string, showSearch bool, searchQuery string, showViewAll bool, user ...*models.User) {
 	<div class="space-y-8">
 		<div class="flex justify-between items-center">
-			<h1 class="text-3xl font-bold text-gray-900">Blog Posts</h1>
+			<h1 class="text-3xl font-bold text-gray-900">{ title }</h1>
 			if len(user) > 0 && user[0] != nil && user[0].IsAdmin() {
 				<a href="/admin/posts/new" class="bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition">Create Post</a>
 			}
 		</div>
 		
-		if len(posts) == 0 {
-			<div class="text-center py-16">
-				<p class="text-gray-500">No posts yet. Check back later!</p>
+		if showSearch {
+			@SearchForm(searchQuery)
+			<div id="posts-list">
+				@PostsContent(posts, showViewAll)
 			</div>
 		} else {
-			<div class="space-y-6">
-				for _, post := range posts {
-					<article class="bg-white border border-gray-200 p-6 hover:shadow-sm transition">
-						<h2 class="text-xl font-semibold text-gray-900 mb-3">
-							<a href={ templ.URL(fmt.Sprintf("/posts/%s", post.Slug)) } class="text-primary-600 hover:text-primary-700">
-								{ post.Title }
-							</a>
-						</h2>
-						<p class="text-gray-600 mb-4">
-							{ truncateContent(post.Content, 200) }...
-						</p>
-						<div class="flex justify-between items-center text-sm text-gray-500">
-							<time>{ post.CreatedAt.Format("January 2, 2006") }</time>
-							<a href={ templ.URL(fmt.Sprintf("/posts/%s", post.Slug)) } class="text-primary-600 hover:text-primary-700">
-								Read more →
-							</a>
-						</div>
-					</article>
-				}
-			</div>
+			@PostsContent(posts, showViewAll)
 		}
 	</div>
 }
 
+templ PostsContent(posts []models.Post, showViewAll bool) {
+	if len(posts) == 0 {
+		<div class="text-center py-16">
+			<p class="text-gray-500">No posts found.</p>
+		</div>
+	} else {
+		<div class="space-y-6">
+			for _, post := range posts {
+				<article class="bg-white border border-gray-200 p-6 hover:shadow-sm transition">
+					<h2 class="text-xl font-semibold text-gray-900 mb-3">
+						<a href={ templ.URL(fmt.Sprintf("/posts/%s", post.Slug)) } class="text-primary-600 hover:text-primary-700">
+							{ post.Title }
+						</a>
+					</h2>
+					<p class="text-gray-600 text-sm mb-4">
+						@templ.Raw(cleanPreview(post.Content, 200) + "...")
+					</p>
+					<div class="flex justify-between items-center text-sm text-gray-500">
+						<div class="flex items-center gap-5">
+							<time>{ post.CreatedAt.Format("January 2, 2006") }</time>
+							@VisibilityBadge(post.Visibility)
+						</div>
+						<a href={ templ.URL(fmt.Sprintf("/posts/%s", post.Slug)) } class="text-primary-600 hover:text-primary-700">
+							Read more →
+						</a>
+					</div>
+				</article>
+			}
+			if showViewAll {
+				<div class="text-center">
+					<a href="/posts" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+						View All Posts →
+					</a>
+				</div>
+			}
+		</div>
+	}
+}
+
 templ PostView(post models.Post) {
-	<article class="bg-white border border-gray-200 p-8">
+	<article class="bg-white border border-gray-200 p-8 max-w-4xl mx-auto">
 		<header class="mb-8">
 			<h1 class="text-3xl font-bold text-gray-900 mb-4">{ post.Title }</h1>
 			<time class="text-gray-600">{ post.CreatedAt.Format("January 2, 2006") }</time>
@@ -61,73 +84,14 @@ templ PostView(post models.Post) {
 	</article>
 }
 
-templ AdminPostsList(posts []models.Post) {
-	<div class="space-y-6">
-		<div class="flex justify-between items-center">
-			<h1 class="text-3xl font-bold text-gray-900">Manage Posts</h1>
-			<button hx-get="/admin/posts/new" hx-target="#content" class="bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition">New Post</button>
-		</div>
-		
-		<div id="content">
-			<div class="bg-white border border-gray-200 overflow-hidden">
-				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="bg-gray-50">
-						<tr>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-						</tr>
-					</thead>
-					<tbody class="bg-white divide-y divide-gray-200">
-						for _, post := range posts {
-							<tr>
-								<td class="px-6 py-4 whitespace-nowrap">
-									<div class="text-sm font-medium text-gray-900">{ post.Title }</div>
-								</td>
-								<td class="px-6 py-4 whitespace-nowrap">
-									<span class={ "inline-flex px-2 py-1 text-xs font-medium", 
-										templ.KV("bg-green-100 text-green-800", post.Published),
-										templ.KV("bg-yellow-100 text-yellow-800", !post.Published) }>
-										if post.Published {
-											Published
-										} else {
-											Draft
-										}
-									</span>
-								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-									{ post.CreatedAt.Format("Jan 2, 2006") }
-								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-									<button hx-get={ fmt.Sprintf("/admin/posts/%d/edit", post.ID) } hx-target="#content" class="text-primary-600 hover:text-primary-700 mr-3">
-										Edit
-									</button>
-									<button 
-										hx-delete={ fmt.Sprintf("/admin/posts/%d", post.ID) }
-										hx-confirm="Are you sure you want to delete this post?"
-										hx-target="closest tr"
-										hx-swap="outerHTML"
-										class="text-red-600 hover:text-red-700"
-									>
-										Delete
-									</button>
-								</td>
-							</tr>
-						}
-					</tbody>
-				</table>
-			</div>
-		</div>
-	</div>
-}
+
 
 templ PostCreatePage() {
 	<div class="space-y-6">
 		<div class="flex justify-between items-center">
 			<h1 class="text-3xl font-bold text-gray-900">Create New Post</h1>
-			<button hx-get="/admin/posts" hx-target="#content" class="border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition">
-				← Back to Posts
+			<button hx-get="/admin/dashboard" hx-target="#content" class="border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition">
+				← Back to Dashboard
 			</button>
 		</div>
 		@PostForm(nil, false)
@@ -138,8 +102,8 @@ templ PostEditPage(post *models.Post) {
 	<div class="space-y-6">
 		<div class="flex justify-between items-center">
 			<h1 class="text-3xl font-bold text-gray-900">Edit Post</h1>
-			<button hx-get="/admin/posts" hx-target="#content" class="border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition">
-				← Back to Posts
+			<button hx-get="/admin/dashboard" hx-target="#content" class="border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition">
+				← Back to Dashboard
 			</button>
 		</div>
 		@PostForm(post, true)
@@ -165,77 +129,37 @@ templ PostForm(post *models.Post, isEdit bool) {
 			hx-target="#content"
 			class="space-y-6"
 		>
+			@FormInput("Title", "title", getPostValue(post, "title"), "text", true)
 			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
-				<input 
-					type="text" 
-					name="title" 
-					value={ getPostValue(post, "title") }
-					class="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-					required
-				/>
+				<label for="slug" class="block text-sm font-medium text-gray-700 mb-2">Slug <span class="text-gray-400 text-xs">(auto-generated)</span></label>
+				<input type="text" id="slug" name="slug" value={ getPostValue(post, "slug") } class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="auto-generated-from-title"/>
 			</div>
+			@FormTextarea("Content (Markdown)", "content", getPostValue(post, "content"), 15, true, "Use Markdown syntax for formatting...")
 			
-			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-2">Slug</label>
-				<input 
-					type="text" 
-					name="slug" 
-					value={ getPostValue(post, "slug") }
-					class="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-					required
-				/>
-			</div>
+			<script>
+				const titleField = document.querySelector('input[name="title"]');
+				const slugField = document.querySelector('input[name="slug"]');
+				titleField.oninput = e => {
+					if (!slugField.value || slugField.dataset.auto) {
+						slugField.value = e.target.value.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim('-');
+						slugField.dataset.auto = 'true';
+					}
+				};
+				slugField.oninput = e => e.target.dataset.auto = e.target.value ? 'false' : 'true';
+			</script>
 			
-			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-2">Content (Markdown)</label>
-				<textarea 
-					name="content" 
-					rows="15"
-					class="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-					required
-					placeholder="Use Markdown syntax for formatting..."
-				>{ getPostValue(post, "content") }</textarea>
-			</div>
-			
-			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-2">Visibility</label>
-				<select 
-					name="visibility" 
-					class="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-				>
-					<option value={ models.VisibilityPublic } selected?={ post == nil || post.Visibility == models.VisibilityPublic }>
-						Public - Anyone can view
-					</option>
-					<option value={ models.VisibilityPremium } selected?={ post != nil && post.Visibility == models.VisibilityPremium }>
-						Premium - Only premium and admin users
-					</option>
-					<option value={ models.VisibilityAdmin } selected?={ post != nil && post.Visibility == models.VisibilityAdmin }>
-						Admin Only - Only admin users
-					</option>
-				</select>
-			</div>
-			
-			<div class="flex items-center">
-				<input 
-					type="checkbox" 
-					name="published" 
-					id="published"
-					class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
-					checked?={ post != nil && post.Published }
-				/>
-				<label for="published" class="ml-2 text-sm text-gray-700">Published</label>
-			</div>
+					<div>
+			<label for="visibility" class="block text-sm font-medium text-gray-700 mb-2">Visibility</label>
+			<select id="visibility" name="visibility" class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500" required>
+				<option value="public" selected?={ post == nil || post.Visibility == "public" }>Public - Anyone can view</option>
+				<option value="premium" selected?={ post != nil && post.Visibility == "premium" }>Premium - Only premium and admin users</option>
+				<option value="admin" selected?={ post != nil && post.Visibility == "admin" }>Admin Only - Only admin users</option>
+			</select>
+		</div>
+		@FormCheckbox("Published", "published", post != nil && post.Published, "published")
 			
 			<div class="flex justify-end space-x-3">
-				<button 
-					type="button"
-					hx-get="/admin/posts"
-					hx-target="#content"
-					class="border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition"
-				>
-					Cancel
-				</button>
+				<button type="button" hx-get="/admin/dashboard" hx-target="#content" class="border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition">Cancel</button>
 				<button type="submit" class="bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition">Save Post</button>
 			</div>
 		</form>
@@ -243,24 +167,21 @@ templ PostForm(post *models.Post, isEdit bool) {
 }
 
 func getPostValue(post *models.Post, field string) string {
-	if post == nil {
-		return ""
-	}
+	if post == nil { return "" }
 	switch field {
-	case "title":
-		return post.Title
-	case "slug":
-		return post.Slug
-	case "content":
-		return post.Content
-	default:
-		return ""
+	case "title": return post.Title
+	case "slug": return post.Slug
+	case "content": return post.Content
+	default: return ""
 	}
 }
 
-func truncateContent(content string, length int) string {
-	if len(content) <= length {
-		return content
+func cleanPreview(content string, length int) string {
+	if len(content) > length {
+		content = content[:length]
 	}
-	return content[:length]
-} 
+	// Convert links and clean markdown
+	content = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`).ReplaceAllString(content, `<a href="$2" class="text-primary-600">$1</a>`)
+	content = regexp.MustCompile(`(?m)^#+\s*|^[\s]*[-*+]\s*|^[\s]*\d+\.\s*|\*\*?([^*]+)\*\*?|__?([^_]+)__?|`+"`[^`]+`"+`|^>\s*`).ReplaceAllString(content, "$1$2")
+	return strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(content, " "))
+}

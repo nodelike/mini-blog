@@ -1,42 +1,208 @@
 package templates
 
 import "mini-blog/app/models"
+import "strings"
+import "fmt"
 
-templ Layout(title string, content templ.Component, user ...*models.User) {
+func isActiveRoute(currentPath, linkPath string) string {
+	if currentPath == linkPath || (linkPath != "/" && strings.HasPrefix(currentPath, linkPath)) {
+		return "text-gray-900 border-b-2 border-primary-600"
+	}
+	return "text-gray-600 hover:text-gray-900 border-b-2 border-transparent"
+}
+
+templ Layout(title string, content templ.Component, currentPath string, user ...*models.User) {
 	<!DOCTYPE html>
 	<html lang="en">
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-		<title>{ title } - Mini Blog</title>
+		<title>{ title } - NODELIKE</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com"/>
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet"/>
 		<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+		<script src="https://unpkg.com/hyperscript.org@0.9.11"></script>
 		<link href="/static/styles.css" rel="stylesheet"/>
+		<style>
+			body, input, textarea, select, button {
+				font-family: 'JetBrains Mono', monospace;
+			}
+		</style>
 	</head>
 	<body class="bg-white text-gray-900">
 		<nav class="bg-white border-b border-gray-200">
-			<div class="max-w-4xl mx-auto px-6">
+			<div class="max-w-6xl mx-auto px-6">
 				<div class="flex justify-between items-center h-16">
-					<a href="/" class="text-xl font-bold text-gray-900">Mini Blog</a>
+					<a href="/" class="text-xl font-bold text-gray-900">NODELIKE</a>
 					<div class="flex items-center space-x-6">
-						<a href="/" class="text-gray-600 hover:text-gray-900">Home</a>
-						<a href="/posts" class="text-gray-600 hover:text-gray-900">Posts</a>
+						<a href="/" class={ isActiveRoute(currentPath, "/") }>Home</a>
+						<a href="/posts" class={ isActiveRoute(currentPath, "/posts") }>Posts</a>
+						if len(user) > 0 && user[0] != nil && user[0].IsAdmin() {
+							<a href="/admin/dashboard" class={ isActiveRoute(currentPath, "/admin") }>Admin</a>
+						}
 						if len(user) > 0 && user[0] != nil {
-							if user[0].IsAdmin() {
-								<a href="/admin/dashboard" class="text-gray-600 hover:text-gray-900">Admin</a>
-							}
 							<span class="text-gray-600">{ user[0].Name }</span>
 							<a href="/logout" class="text-gray-600 hover:text-gray-900">Logout</a>
 						} else {
-							<a href="/login" class="text-gray-600 hover:text-gray-900">Login</a>
+							<a href="/login" class={ isActiveRoute(currentPath, "/login") }>Login</a>
 							<a href="/signup" class="bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition">Sign Up</a>
 						}
 					</div>
 				</div>
 			</div>
 		</nav>
-		<main class="max-w-4xl mx-auto px-6 py-8">
-			@content
+		<main class="max-w-6xl mx-auto px-6 py-8">
+			if strings.HasPrefix(currentPath, "/admin") {
+				<div id="content">
+					@content
+				</div>
+			} else {
+				@content
+			}
 		</main>
 	</body>
 	</html>
+}
+
+templ AdminDashboard(users []models.User, posts []models.Post, stats models.DashboardStats) {
+	<div class="space-y-8">
+		<h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+		
+		<!-- Stats Section -->
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+			<div class="bg-white border border-gray-200 p-6">
+				<h3 class="text-lg font-semibold text-gray-900 mb-2">Total Users</h3>
+				<p class="text-3xl font-bold text-primary-600">{ fmt.Sprintf("%d", stats.TotalUsers) }</p>
+			</div>
+			<div class="bg-white border border-gray-200 p-6">
+				<h3 class="text-lg font-semibold text-gray-900 mb-2">Premium Users</h3>
+				<p class="text-3xl font-bold text-primary-600">{ fmt.Sprintf("%d", stats.PremiumUsers) }</p>
+			</div>
+			<div class="bg-white border border-gray-200 p-6">
+				<h3 class="text-lg font-semibold text-gray-900 mb-2">Total Posts</h3>
+				<p class="text-3xl font-bold text-primary-600">{ fmt.Sprintf("%d", stats.TotalPosts) }</p>
+			</div>
+			<div class="bg-white border border-gray-200 p-6">
+				<h3 class="text-lg font-semibold text-gray-900 mb-2">Published Posts</h3>
+				<p class="text-3xl font-bold text-primary-600">{ fmt.Sprintf("%d", stats.PublishedPosts) }</p>
+			</div>
+		</div>
+
+		<!-- Users Section -->
+		<div class="space-y-4">
+			<div class="flex justify-between items-center">
+				<h2 class="text-2xl font-bold text-gray-900">Users</h2>
+			</div>
+			<div class="bg-white border border-gray-200 overflow-hidden">
+				<table class="min-w-full divide-y divide-gray-200">
+					<thead class="bg-gray-50">
+						<tr>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="bg-white divide-y divide-gray-200">
+						for _, user := range users {
+							@AdminUserRow(user)
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Posts Section -->
+		<div class="space-y-4">
+			<div class="flex justify-between items-center">
+				<h2 class="text-2xl font-bold text-gray-900">Posts</h2>
+				<button hx-get="/admin/posts/new" hx-target="#content" class="bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition">New Post</button>
+			</div>
+			<div class="bg-white border border-gray-200 overflow-hidden">
+				<table class="min-w-full divide-y divide-gray-200">
+					<thead class="bg-gray-50">
+						<tr>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Visibility</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="bg-white divide-y divide-gray-200">
+						for _, post := range posts {
+							<tr>
+								<td class="px-6 py-4 whitespace-nowrap">
+									<div class="text-sm font-medium text-gray-900">{ post.Title }</div>
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap">
+									@VisibilityBadge(post.Visibility)
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap">
+									@PublishStatusBadge(post.Published)
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+									{ post.CreatedAt.Format("Jan 2, 2006") }
+								</td>
+								<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+									<button hx-get={ fmt.Sprintf("/admin/posts/%d/edit", post.ID) } hx-target="#content" class="text-primary-600 hover:text-primary-700 mr-3">Edit</button>
+									<button hx-delete={ fmt.Sprintf("/admin/posts/%d", post.ID) } hx-confirm="Are you sure?" hx-target="closest tr" hx-swap="outerHTML" class="text-red-600 hover:text-red-700">Delete</button>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+}
+
+templ AdminUserRow(user models.User) {
+	<tr>
+		<td class="px-6 py-4 whitespace-nowrap">
+			<div class="flex items-center">
+				<div>
+					<div class="text-sm font-medium text-gray-900">{ user.Name }</div>
+					<div class="text-sm text-gray-500">{ user.Email }</div>
+				</div>
+			</div>
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap">
+			<span class={ getRoleClass(user.Role) }>{ models.GetRoleName(user.Role) }</span>
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap">
+			if user.IsVerified {
+				<span class="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800">Verified</span>
+			} else {
+				<span class="inline-flex px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+			}
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+			{ user.CreatedAt.Format("Jan 2, 2006") }
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+			<form hx-post={ fmt.Sprintf("/admin/users/%d/role", user.ID) } hx-target="closest tr" hx-swap="outerHTML" class="inline-flex items-center space-x-2">
+				<select name="role" class="text-xs border border-gray-300 px-2 py-1">
+					<option value={ models.RoleUser } selected?={ user.Role == models.RoleUser }>User</option>
+					<option value={ models.RolePremium } selected?={ user.Role == models.RolePremium }>Premium</option>
+					<option value={ models.RoleAdmin } selected?={ user.Role == models.RoleAdmin }>Admin</option>
+				</select>
+				<button type="submit" class="text-primary-600 hover:text-primary-700 text-xs">Update</button>
+			</form>
+		</td>
+	</tr>
+}
+
+func getRoleClass(role string) string {
+	classes := map[string]string{
+		models.RoleAdmin:   "inline-flex px-2 py-1 text-xs font-medium bg-red-100 text-red-800",
+		models.RolePremium: "inline-flex px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800",
+		models.RoleUser:    "inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800",
+	}
+	if class, exists := classes[role]; exists {
+		return class
+	}
+	return classes[models.RoleUser]
 } 

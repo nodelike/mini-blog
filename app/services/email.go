@@ -29,12 +29,12 @@ func (e *EmailService) SendOTP(email, name, otp string) error {
 	}
 
 	params := &resend.SendEmailRequest{
-		From:    "Mini Blog <onboarding@nodelike.com>",
+		From:    "NODELIKE <onboarding@nodelike.com>",
 		To:      []string{email},
-		Subject: "Your Mini Blog Verification Code",
+		Subject: "Your NODELIKE Verification Code",
 		Html: fmt.Sprintf(`
 		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-			<h2 style="color: #333;">Welcome to Mini Blog!</h2>
+			<h2 style="color: #333;">Welcome to NODELIKE!</h2>
 			<p>Hi %s,</p>
 			<p>Thank you for signing up! Please use the following verification code to complete your registration:</p>
 			<div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
@@ -42,7 +42,7 @@ func (e *EmailService) SendOTP(email, name, otp string) error {
 			</div>
 			<p>This code will expire in 10 minutes.</p>
 			<p>If you didn't request this code, please ignore this email.</p>
-			<p>Best regards,<br>Mini Blog Team</p>
+			<p>Best regards,<br>NODELIKE Team</p>
 		</div>
 		`, name, otp),
 	}
@@ -69,21 +69,21 @@ func (e *EmailService) SendWelcomeEmail(email, name string, isAdmin bool) error 
 	}
 
 	params := &resend.SendEmailRequest{
-		From:    "Mini Blog <onboarding@nodelike.com>",
+		From:    "NODELIKE <onboarding@nodelike.com>",
 		To:      []string{email},
-		Subject: "Welcome to Mini Blog!",
+		Subject: "Welcome to NODELIKE!",
 		Html: fmt.Sprintf(`
 		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-			<h2 style="color: #333;">Welcome to Mini Blog, %s!</h2>
+			<h2 style="color: #333;">Welcome to NODELIKE, %s!</h2>
 			<p>Your account has been successfully verified and activated.</p>
 			%s
 			<p>You can now start exploring and creating amazing content!</p>
 			<div style="text-align: center; margin: 30px 0;">
 				<a href="http://localhost:8080" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-					Visit Mini Blog
+					Visit NODELIKE
 				</a>
 			</div>
-			<p>Best regards,<br>Mini Blog Team</p>
+			<p>Best regards,<br>NODELIKE Team</p>
 		</div>
 		`, name, adminMessage),
 	}
