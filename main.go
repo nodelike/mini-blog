@@ -5,6 +5,7 @@ import (
 	"mini-blog/app/config"
 	"mini-blog/app/handlers"
 	"mini-blog/app/models"
+	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -24,6 +25,11 @@ func main() {
 	e.Static("/static", "static")
 
 	h := handlers.NewBaseHandler(cfg)
+
+	// Health check route (no database dependency)
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
 
 	// Public routes
 	public := e.Group("")
