@@ -347,6 +347,7 @@ templ AdminCTAButtons(media *models.Media, user *models.User) {
 // Unified Media Card Component (replaces MediaCard + SearchResultCard)
 templ UnifiedMediaCard(item interface{}, user *models.User, isSearch bool) {
 	<div 
+		id={ getTMDBID(item) }
 		class="group relative bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
 		hx-get={ getModalURL(item, isSearch) }
 		hx-target="#modal-content"
@@ -393,6 +394,17 @@ templ UnifiedMediaCard(item interface{}, user *models.User, isSearch bool) {
 }
 
 // Helper functions for unified card
+func getTMDBID(item interface{}) string {
+	switch v := item.(type) {
+	case models.Media:
+		return fmt.Sprintf("tmdb-%d", v.TMDBID)
+	case services.SearchResult:
+		return fmt.Sprintf("tmdb-%d", v.ID)
+	default:
+		return ""
+	}
+}
+
 func getModalURL(item interface{}, isSearch bool) string {
 	switch v := item.(type) {
 	case models.Media:

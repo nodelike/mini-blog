@@ -169,7 +169,16 @@ func (h *BaseHandler) MediaAdd(c echo.Context) error {
 	// Force immediate sync to ensure correct InProduction status in library
 	h.SyncMedia(tmdbID)
 
-	// Force complete page reload to show fresh data
+	// If HTMX request, stay in modal and show updated library version
+	if h.isHTMXRequest(c) {
+		media, seasons, episodes, allEpisodes, err := h.getMediaModalData(tmdbID, mediaType, true)
+		if err != nil {
+			return h.render(c, templates.ErrorModal(err.Error()))
+		}
+		return h.renderWithCardUpdate(c, templates.MediaDetailModal(media, seasons, episodes, allEpisodes, h.GetCurrentUser(c)), *media)
+	}
+
+	// For non-HTMX requests or library updates, redirect as before
 	return c.HTML(http.StatusOK, `<script>
 		closeModal();
 		window.location.replace('/tv');
@@ -415,6 +424,11 @@ func (h *BaseHandler) MediaRemove(c echo.Context) error {
 
 	if err := models.DB.Unscoped().Where("tmdb_id = ?", tmdbID).Delete(&models.Media{}).Error; err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete media")
+	}
+
+	// If HTMX request, just close modal
+	if h.isHTMXRequest(c) {
+		return c.HTML(http.StatusOK, `<script>closeModal();</script>`)
 	}
 
 	// Close modal and redirect to refresh the page

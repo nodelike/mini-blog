@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"mini-blog/app/config"
 	"mini-blog/app/models"
 	"mini-blog/app/services"
@@ -47,6 +48,21 @@ func NewBaseHandler(cfg *config.Config) *BaseHandler {
 // Common utility methods
 func (h *BaseHandler) render(c echo.Context, component templ.Component) error {
 	return component.Render(c.Request().Context(), c.Response().Writer)
+}
+
+func (h *BaseHandler) renderWithCardUpdate(c echo.Context, component templ.Component, media models.Media) error {
+	c.Response().Header().Set("Content-Type", "text/html")
+	c.Response().WriteHeader(http.StatusOK)
+
+	// Render main content
+	component.Render(c.Request().Context(), c.Response().Writer)
+
+	// Update search card out-of-band
+	c.Response().Writer.Write([]byte(fmt.Sprintf(`<div hx-swap-oob="true" id="tmdb-%d">`, media.TMDBID)))
+	templates.UnifiedMediaCard(media, h.GetCurrentUser(c), false).Render(c.Request().Context(), c.Response().Writer)
+	c.Response().Writer.Write([]byte(`</div>`))
+
+	return nil
 }
 
 func (h *BaseHandler) GetCurrentUser(c echo.Context) *models.User {
