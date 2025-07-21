@@ -1,6 +1,6 @@
 [build]
 nixpacksPlan.providers = ["node", "go"]
-buildCommand = "npm install && export PATH=$PATH:./node_modules/.bin && npm run build && go install github.com/a-h/templ/cmd/templ@latest && templ generate && go build -o mini-blog ."
+buildCommand = "make install-tools && make build"
 
 [deploy]
 startCommand = "./mini-blog"
