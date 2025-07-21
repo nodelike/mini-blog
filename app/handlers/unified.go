@@ -141,6 +141,9 @@ func (h *BaseHandler) Signup(c echo.Context) error {
 	// Send OTP
 	h.sendOTP(email, name, otp)
 
+	// For successful signup, change HTMX target to replace entire form wrapper
+	c.Response().Header().Set("HX-Retarget", "#auth-form-wrapper")
+	c.Response().Header().Set("HX-Reswap", "outerHTML")
 	return h.render(c, templates.OTPForm(email))
 }
 
@@ -395,5 +398,9 @@ func (h *BaseHandler) updateAndResendOTP(c echo.Context, user *models.User, name
 	}
 
 	h.sendOTP(user.Email, name, otp)
+
+	// For successful signup, change HTMX target to replace entire form wrapper
+	c.Response().Header().Set("HX-Retarget", "#auth-form-wrapper")
+	c.Response().Header().Set("HX-Reswap", "outerHTML")
 	return h.render(c, templates.OTPForm(user.Email))
 }
