@@ -1,12 +1,12 @@
 [build]
-# Run build steps directly since Railway's Go environment doesn't include npm
-buildCommand = "npm install && npm run build && go install github.com/a-h/templ/cmd/templ@latest && templ generate && go build -o mini-blog ."
+buildCommand = "make install-tools && make build"
 
 [deploy]
-# Start the compiled Go binary
 startCommand = "./mini-blog"
 
-# Railway will check this path to ensure the service is healthy
 healthcheckPath = "/"
 healthcheckTimeout = 100
-restartPolicyType = "ON_FAILURE" 
+restartPolicyType = "ON_FAILURE"
+
+[build.nixpacks]
+providers = ["node", "go"] 
