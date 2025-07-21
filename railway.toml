@@ -1,6 +1,6 @@
 [build]
-# Use existing Makefile commands for cleaner build process
-buildCommand = "make install-tools && make build"
+# Install dependencies manually, then use make build
+buildCommand = "npm install && go install github.com/a-h/templ/cmd/templ@latest && go install github.com/air-verse/air@latest && make build"
 
 [deploy]
 # Start the compiled Go binary
