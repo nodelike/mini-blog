@@ -1,0 +1,12 @@
+[build]
+# Use existing Makefile commands for cleaner build process
+buildCommand = "make install-tools && make build"
+
+[deploy]
+# Start the compiled Go binary
+startCommand = "./mini-blog"
+
+# Railway will check this path to ensure the service is healthy
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE" 
