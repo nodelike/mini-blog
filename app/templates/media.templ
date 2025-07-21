@@ -478,8 +478,15 @@ templ SeasonResponse(media models.Media, seasons []models.Season, episodes []mod
 				@EpisodesListWithWatched(episodes, user)
 			</div>
 		</div>
+	} else if updateType == "episodes" {
+		<!-- Update season buttons with out-of-band swap -->
+		<div hx-swap-oob="true" id="season-buttons">
+			@SeasonButtonsContainer(media, seasons, allEpisodes, user, currentSeason)
+		</div>
+		<!-- Return episodes list as main response -->
+		@EpisodesListWithWatched(episodes, user)
 	} else {
-		<!-- Return season buttons (for episode list updates and toggles) -->
+		<!-- Return season buttons only (for toggles) -->
 		<div id="season-buttons" class="flex flex-wrap gap-3">
 			for _, season := range seasons {
 				if season.SeasonNumber > 0 {

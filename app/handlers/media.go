@@ -280,7 +280,7 @@ func (h *BaseHandler) MediaEpisodes(c echo.Context) error {
 		var seasons []models.Season
 		models.DB.Where("tmdb_id = ?", tmdbID).Order("season_number ASC").Find(&seasons)
 
-		return h.render(c, templates.SeasonResponse(media, seasons, episodes, allEpisodes, season, user, "update"))
+		return h.render(c, templates.SeasonResponse(media, seasons, episodes, allEpisodes, season, user, "episodes"))
 	} else {
 		// Show not in library - fetch from TMDB for preview
 		if tmdbEpisodes, err := h.tmdbService.GetEpisodes(tmdbID, season); err == nil {
