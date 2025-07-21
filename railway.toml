@@ -1,12 +1,12 @@
 [build]
+builder = "NIXPACKS"
+# Providers: node for npm/Tailwind, go for your app; order matters (node first ensures npm ready)
+nixpacksPlan = { providers = ["node", "go"] }
+# Custom build: Runs after setup/install phases, so npm is available
 buildCommand = "make install-tools && make build"
 
 [deploy]
 startCommand = "./mini-blog"
-
 healthcheckPath = "/"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
-
-[build.nixpacks]
-providers = ["node", "go"] 
