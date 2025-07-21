@@ -15,51 +15,19 @@ import (
 func (h *BaseHandler) MediaFilter(c echo.Context) error {
 	user := h.GetCurrentUser(c)
 	filters := c.QueryParams()["filters"]
-	var media []models.Media
 
-	if len(filters) == 0 || (len(filters) == 1 && filters[0] == "all") {
-		models.DB.Find(&media)
-		return h.render(c, templates.MediaGrid(media, user))
+	// Remove "all" filter and use unified function
+	if len(filters) == 1 && filters[0] == "all" {
+		filters = nil
 	}
 
-	var conditions []string
-	var args []interface{}
-
-	for _, filter := range filters {
-		switch filter {
-		case "tv":
-			conditions = append(conditions, "(type = ? AND is_anime = ?)")
-			args = append(args, "tv", false)
-		case "movie":
-			conditions = append(conditions, "(type = ? AND is_anime = ?)")
-			args = append(args, "movie", false)
-		case "anime-tv":
-			conditions = append(conditions, "(type = ? AND is_anime = ?)")
-			args = append(args, "tv", true)
-		case "anime-movie":
-			conditions = append(conditions, "(type = ? AND is_anime = ?)")
-			args = append(args, "movie", true)
-		case "all":
-			continue
-		}
-	}
-
-	if len(conditions) > 0 {
-		whereClause := strings.Join(conditions, " OR ")
-		models.DB.Where(whereClause, args...).Find(&media)
-	} else {
-		models.DB.Find(&media)
-	}
-
+	media := h.getMediaSorted(filters, "")
 	return h.render(c, templates.MediaGrid(media, user))
 }
 
 func (h *BaseHandler) MediaList(c echo.Context) error {
 	user := h.GetCurrentUser(c)
-	var media []models.Media
-	if err := models.DB.Find(&media).Error; err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch tracked media")
-	}
+	media := h.getMediaSorted(nil, "")
 
 	if h.isHTMXRequest(c) {
 		return h.render(c, templates.MediaGrid(media, user))
@@ -110,12 +78,8 @@ func (h *BaseHandler) MediaSearch(c echo.Context) error {
 		}
 		return h.render(c, templates.MediaGrid(searchResults, user))
 	} else {
-		// Library search (all types)
-		var media []models.Media
-		searchTerm := "%" + query + "%"
-		if err := models.DB.Where("title ILIKE ?", searchTerm).Find(&media).Error; err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to search library")
-		}
+		// Library search (all types) with last watched sorting
+		media := h.getMediaSorted(nil, query)
 		return h.render(c, templates.MediaGrid(media, user))
 	}
 }
@@ -316,7 +280,7 @@ func (h *BaseHandler) MediaEpisodes(c echo.Context) error {
 		var seasons []models.Season
 		models.DB.Where("tmdb_id = ?", tmdbID).Order("season_number ASC").Find(&seasons)
 
-		return h.render(c, templates.SeasonUpdateResponse(media, seasons, episodes, allEpisodes, season, user))
+		return h.render(c, templates.SeasonResponse(media, seasons, episodes, allEpisodes, season, user, "update"))
 	} else {
 		// Show not in library - fetch from TMDB for preview
 		if tmdbEpisodes, err := h.tmdbService.GetEpisodes(tmdbID, season); err == nil {

@@ -118,6 +118,7 @@ func (s *TMDBService) GetDetails(tmdbID int, mediaType string) (*models.Media, e
 		PosterPath   string `json:"poster_path"`
 		ReleaseDate  string `json:"release_date,omitempty"`
 		FirstAirDate string `json:"first_air_date,omitempty"`
+		Status       string `json:"status,omitempty"` // TV show production status
 		Genres       []struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
@@ -149,17 +150,27 @@ func (s *TMDBService) GetDetails(tmdbID int, mediaType string) (*models.Media, e
 
 	genresJSON, _ := json.Marshal(details.Genres)
 
+	// Determine if show is still in production
+	inProduction := true
+	if mediaType == "tv" && details.Status != "" {
+		switch details.Status {
+		case "Ended", "Canceled", "Cancelled":
+			inProduction = false
+		}
+	}
+
 	return &models.Media{
-		TMDBID:      details.ID,
-		Type:        mediaType,
-		Title:       title,
-		Overview:    details.Overview,
-		PosterPath:  details.PosterPath,
-		ReleaseDate: releaseDate,
-		Genres:      string(genresJSON),
-		Popularity:  details.Popularity,
-		VoteCount:   details.VoteCount,
-		VoteAverage: details.VoteAverage,
+		TMDBID:       details.ID,
+		Type:         mediaType,
+		Title:        title,
+		Overview:     details.Overview,
+		PosterPath:   details.PosterPath,
+		ReleaseDate:  releaseDate,
+		Genres:       string(genresJSON),
+		Popularity:   details.Popularity,
+		VoteCount:    details.VoteCount,
+		VoteAverage:  details.VoteAverage,
+		InProduction: inProduction,
 	}, nil
 }
 

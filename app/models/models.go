@@ -84,6 +84,7 @@ type Media struct {
 	Notes         string     `json:"notes" gorm:"type:text"`
 	AddedAt       time.Time  `json:"added_at" gorm:"autoCreateTime"`
 	LastSyncedAt  *time.Time `json:"last_synced_at" gorm:"index"`
+	InProduction  bool       `json:"in_production" gorm:"default:true"` // false if show has ended
 }
 
 // Episode model to store complete episode data locally with single-user tracking

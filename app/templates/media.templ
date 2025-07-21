@@ -202,19 +202,10 @@ templ MediaOverlays(voteAverage float64, voteCount int) {
 
 
 
-templ StatusBadge(status string) {
-	switch status {
-		case "watching":
-			<span class="inline-block bg-blue-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Watching</span>
-		case "completed":
-			<span class="inline-block bg-green-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Completed</span>
-		case "planned":
-			<span class="inline-block bg-yellow-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Planned</span>
-		case "dropped":
-			<span class="inline-block bg-red-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Dropped</span>
-		default:
-			<span class="inline-block bg-gray-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">{ strings.Title(status) }</span>
-	}
+templ StatusBadge(status, mediaType string, inProduction ...bool) {
+	<span class={ fmt.Sprintf("inline-block text-white text-xs px-3 py-1 font-bold uppercase tracking-wide %s", getStatusColor(status, mediaType, inProduction...)) }>
+		{ strings.Title(status) }
+	</span>
 }
 
 templ ErrorModal(message string) {
@@ -229,54 +220,60 @@ templ ErrorModal(message string) {
 	</div>
 }
 
+templ MediaInfoSection(media models.Media, user *models.User) {
+	<div>
+		<h1 class="text-2xl font-bold text-gray-900 mb-3">{ media.Title }</h1>
+		<div class="flex items-center gap-4 text-sm text-gray-600 mb-4">
+			<span class="bg-gray-900 text-white px-3 py-1 text-xs font-medium uppercase">{ media.Type }</span>
+			if media.IsAnime {
+				<span class="bg-orange-500 text-white px-2 py-1 text-xs font-bold uppercase">Anime</span>
+			}
+			if media.VoteAverage > 0 {
+				<span class="flex items-center gap-1">
+					<span class="text-yellow-500">★</span>
+					{ fmt.Sprintf("%.1f", media.VoteAverage) }
+				</span>
+			}
+			if media.VoteCount > 0 {
+				<span class="text-gray-500">{ fmt.Sprintf("%d votes", media.VoteCount) }</span>
+			}
+		</div>
+		
+		if media.Overview != "" {
+			<p class="text-gray-700 text-sm leading-relaxed">{ media.Overview }</p>
+		}
+	</div>
+	
+	@AdminCTAButtons(&media, user)
+}
+
 templ MediaDetailModal(media *models.Media, seasons []models.Season, episodes []models.Episode, allEpisodes []models.Episode, user *models.User) {
 	<div class="flex h-[85vh] bg-white max-w-full">
-		<div class="flex-shrink-0 p-6 space-y-6">
-			<div class="w-96 aspect-[2/3] relative">
-				if media.PosterPath != "" {
-					<img 
-						src={ fmt.Sprintf("https://image.tmdb.org/t/p/w500%s", media.PosterPath) } 
-						alt={ media.Title }
-						class="w-full h-full object-cover"
-					/>
-				} else {
+				<div class="flex-shrink-0 p-6 space-y-6">
+			<div id="media-poster" class="w-96 aspect-[2/3] relative">
+			if media.PosterPath != "" {
+				<img 
+					src={ fmt.Sprintf("https://image.tmdb.org/t/p/w500%s", media.PosterPath) } 
+					alt={ media.Title }
+					class="w-full h-full object-cover"
+				/>
+			} else {
 					<div class="w-full h-full flex items-center justify-center">
-						<span class="text-gray-400 text-sm">No Image</span>
-					</div>
-				}
+					<span class="text-gray-400 text-sm">No Image</span>
+				</div>
+			}
 				if media.Status != "" {
 					<div class="absolute top-3 left-3">
-						@StatusBadge(media.Status)
+						@StatusBadge(media.Status, media.Type, media.InProduction)
 					</div>
 				}
-			</div>
+		</div>
 			
-			<div class="w-96 space-y-6">
-				<div>
-					<h1 class="text-2xl font-bold text-gray-900 mb-3">{ media.Title }</h1>
-					<div class="flex items-center gap-4 text-sm text-gray-600 mb-4">
-						<span class="bg-gray-900 text-white px-3 py-1 text-xs font-medium uppercase">{ media.Type }</span>
-						if media.IsAnime {
-							<span class="bg-orange-500 text-white px-2 py-1 text-xs font-bold uppercase">Anime</span>
-						}
-						if media.VoteAverage > 0 {
-							<span class="flex items-center gap-1">
-								<span class="text-yellow-500">★</span>
-								{ fmt.Sprintf("%.1f", media.VoteAverage) }
-							</span>
-						}
-						if media.VoteCount > 0 {
-							<span class="text-gray-500">{ fmt.Sprintf("%d votes", media.VoteCount) }</span>
-						}
-					</div>
-					
-					if media.Overview != "" {
-						<p class="text-gray-700 text-sm leading-relaxed">{ media.Overview }</p>
-					}
-				</div>
-				
-				@AdminCTAButtons(media, user)
+					<div class="w-96 space-y-6">
+			<div id="media-info">
+				@MediaInfoSection(*media, user)
 			</div>
+		</div>
 		</div>
 		
 		<div class="flex-1 flex flex-col min-w-0">
@@ -294,7 +291,7 @@ templ MediaDetailModal(media *models.Media, seasons []models.Season, episodes []
 					}
 					
 					if len(seasons) > 0 {
-						<div class="space-y-6">
+						<div id="seasons-content" class="space-y-6">
 							<div>
 								<h3 class="text-lg font-semibold text-gray-900 mb-4">Seasons</h3>
 								<div id="season-buttons">
@@ -448,19 +445,71 @@ templ RatingChart(episodes []models.Episode) {
 	</svg>
 }
 
-templ SeasonUpdateResponse(media models.Media, seasons []models.Season, episodes []models.Episode, allEpisodes []models.Episode, currentSeason int, user *models.User) {
-	<!-- Update season buttons with out-of-band swap -->
-	<div hx-swap-oob="true" id="season-buttons">
-		@SeasonButtonsContainer(media, seasons, allEpisodes, user, currentSeason)
-	</div>
-	
-	<!-- Update chart with out-of-band swap -->
+// Unified season response template - handles all season-related updates
+templ SeasonResponse(media models.Media, seasons []models.Season, episodes []models.Episode, allEpisodes []models.Episode, currentSeason int, user *models.User, updateType string) {
+	<!-- Update chart -->
 	<div hx-swap-oob="true" id="episode-chart">
 		@EpisodeRatingChart(allEpisodes, currentSeason)
 	</div>
 	
-	<!-- Return episodes list as main response -->
-	@EpisodesListWithWatched(episodes, user)
+	if updateType == "toggle" {
+		<!-- Update episodes for season toggle -->
+		<div hx-swap-oob="true" id="episodes-container">
+			@EpisodesListWithWatched(episodes, user)
+		</div>
+		<!-- Update media info -->
+		<div hx-swap-oob="true" id="media-info">
+			@MediaInfoSection(media, user)
+		</div>
+		<!-- Update poster -->
+		@MediaPosterUpdate(media)
+	}
+	
+	if updateType == "content" {
+		<!-- Return full seasons content -->
+		<div class="space-y-6">
+			<div>
+				<h3 class="text-lg font-semibold text-gray-900 mb-4">Seasons</h3>
+				<div id="season-buttons">
+					@SeasonButtonsContainer(media, seasons, allEpisodes, user, currentSeason)
+				</div>
+			</div>
+			<div id="episodes-container">
+				@EpisodesListWithWatched(episodes, user)
+			</div>
+		</div>
+	} else {
+		<!-- Return season buttons (for episode list updates and toggles) -->
+		<div id="season-buttons" class="flex flex-wrap gap-3">
+			for _, season := range seasons {
+				if season.SeasonNumber > 0 {
+					@SeasonButton(media, season, season.SeasonNumber == currentSeason, user, allEpisodes)
+				}
+			}
+		</div>
+	}
+}
+
+// Extracted poster update component
+templ MediaPosterUpdate(media models.Media) {
+	<div hx-swap-oob="true" id="media-poster" class="w-96 aspect-[2/3] relative">
+		if media.PosterPath != "" {
+			<img 
+				src={ fmt.Sprintf("https://image.tmdb.org/t/p/w500%s", media.PosterPath) } 
+				alt={ media.Title }
+				class="w-full h-full object-cover"
+			/>
+		} else {
+			<div class="w-full h-full flex items-center justify-center">
+				<span class="text-gray-400 text-sm">No Image</span>
+			</div>
+		}
+		if media.Status != "" {
+			<div class="absolute top-3 left-3">
+				@StatusBadge(media.Status, media.Type, media.InProduction)
+			</div>
+		}
+	</div>
 }
 
 templ SeasonButtonsContainer(media models.Media, seasons []models.Season, allEpisodes []models.Episode, user *models.User, activeSeason int) {
@@ -473,7 +522,7 @@ templ SeasonButtonsContainer(media models.Media, seasons []models.Season, allEpi
 	</div>
 }
 
-// Helper functions for episode rating chart
+// Consolidated chart helper functions
 func filterEpisodesBySeason(episodes []models.Episode, season int) []models.Episode {
 	var filtered []models.Episode
 	for _, ep := range episodes {
@@ -486,22 +535,18 @@ func filterEpisodesBySeason(episodes []models.Episode, season int) []models.Epis
 
 func getEpisodeX(index, total int) string {
 	if total <= 1 {
-		return "410" // Center if only one episode
+		return "410"
 	}
-	x := 80 + (index * 660 / (total - 1)) // Distribute evenly from x=80 to x=740
-	return strconv.Itoa(x)
+	return strconv.Itoa(80 + (index * 660 / (total - 1)))
 }
 
 func generateChartPoints(episodes []models.Episode) string {
 	if len(episodes) == 0 {
 		return ""
 	}
-	
 	var points []string
 	for i, ep := range episodes {
-		x := getEpisodeX(i, len(episodes))
-		y := 110 - int(ep.VoteAverage*10) // Scale 0-10 to 110-10
-		points = append(points, fmt.Sprintf("%s,%d", x, y))
+		points = append(points, fmt.Sprintf("%s,%d", getEpisodeX(i, len(episodes)), 110-int(ep.VoteAverage*10)))
 	}
 	return strings.Join(points, " ")
 }
@@ -510,50 +555,28 @@ func generateAreaPoints(episodes []models.Episode) string {
 	if len(episodes) == 0 {
 		return ""
 	}
-	
-	var points []string
-	// Start from bottom left
+	chartPoints := generateChartPoints(episodes)
 	firstX := getEpisodeX(0, len(episodes))
-	points = append(points, fmt.Sprintf("%s,110", firstX))
-	
-	// Add all episode points
-	for i, ep := range episodes {
-		x := getEpisodeX(i, len(episodes))
-		y := 110 - int(ep.VoteAverage*10)
-		points = append(points, fmt.Sprintf("%s,%d", x, y))
-	}
-	
-	// End at bottom right
 	lastX := getEpisodeX(len(episodes)-1, len(episodes))
-	points = append(points, fmt.Sprintf("%s,110", lastX))
-	
-	return strings.Join(points, " ")
+	return fmt.Sprintf("%s,110 %s %s,110", firstX, chartPoints, lastX)
 }
 
 func isPeak(ep models.Episode, episodes []models.Episode) bool {
-	if len(episodes) < 2 {
-		return false
-	}
 	max, _ := findMinMax(episodes)
-	return ep.VoteAverage == max
+	return len(episodes) >= 2 && ep.VoteAverage == max
 }
 
 func isValley(ep models.Episode, episodes []models.Episode) bool {
-	if len(episodes) < 2 {
-		return false
-	}
 	_, min := findMinMax(episodes)
-	return ep.VoteAverage == min
+	return len(episodes) >= 2 && ep.VoteAverage == min
 }
 
 func getPeakArrow(x string, y int) string {
-	// Small upward arrow above the point
 	xi, _ := strconv.Atoi(x)
 	return fmt.Sprintf("%d,%d %d,%d %d,%d", xi-3, y-8, xi, y-12, xi+3, y-8)
 }
 
 func getValleyArrow(x string, y int) string {
-	// Small downward arrow below the point
 	xi, _ := strconv.Atoi(x)
 	return fmt.Sprintf("%d,%d %d,%d %d,%d", xi-3, y+8, xi, y+12, xi+3, y+8)
 }
@@ -562,10 +585,7 @@ func findMinMax(episodes []models.Episode) (float64, float64) {
 	if len(episodes) == 0 {
 		return 0, 0
 	}
-	
-	max := episodes[0].VoteAverage
-	min := episodes[0].VoteAverage
-	
+	max, min := episodes[0].VoteAverage, episodes[0].VoteAverage
 	for _, ep := range episodes {
 		if ep.VoteAverage > max {
 			max = ep.VoteAverage

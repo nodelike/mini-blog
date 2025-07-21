@@ -240,18 +240,18 @@ templ SearchDropdown(selectedType, placeholder string) {
 }
 
 // Media Progress Bar Component
-templ ProgressBar(status, mediaType string, progress, total int) {
+templ ProgressBar(status, mediaType string, progress, total int, inProduction ...bool) {
 	if status != "planned" {
 		<div class="absolute bottom-0 left-0 right-0">
 			if mediaType == "tv" && progress > 0 {
 				<div class="h-2 bg-black/20">
 					<div 
-						class={ fmt.Sprintf("h-full transition-all duration-300 %s", getStatusColor(status)) }
+						class={ fmt.Sprintf("h-full transition-all duration-300 %s", getStatusColor(status, mediaType, inProduction...)) }
 						style={ fmt.Sprintf("width: %d%%", (progress * 100 / max(total, 1))) }
 					></div>
 				</div>
 			} else if mediaType == "movie" {
-				<div class={ fmt.Sprintf("h-2 %s", getStatusColor(status)) }></div>
+				<div class={ fmt.Sprintf("h-2 %s", getStatusColor(status, mediaType, inProduction...)) }></div>
 			}
 		</div>
 	}
@@ -260,14 +260,22 @@ templ ProgressBar(status, mediaType string, progress, total int) {
 
 
 // Helper functions
-func getStatusColor(status string) string {
+func getStatusColor(status string, mediaType string, inProduction ...bool) string {
 	switch status {
 	case "completed":
-		return "bg-green-500"
+		// Movies are always green
+		if mediaType == "movie" {
+			return "bg-purple-500"
+		}
+		// TV shows: green if ended, primary if still in production
+		if len(inProduction) > 0 && !inProduction[0] {
+			return "bg-purple-500"
+		}
+		return "bg-orange-500"
 	case "watching":
-		return "bg-primary-600"
+		return "bg-orange-500"
 	case "dropped":
-		return "bg-red-500"
+		return "bg-primary-500"
 	case "planned":
 		return "bg-purple-500"
 	default:
@@ -357,7 +365,7 @@ templ UnifiedMediaCard(item interface{}, user *models.User, isSearch bool) {
 						</div>
 					}
 				}
-				@ProgressBar(getItemStatus(item), getItemType(item), getProgress(item), getTotalEpisodes(item))
+				@ProgressBar(getItemStatus(item), getItemType(item), getProgress(item), getTotalEpisodes(item), getInProduction(item))
 			}
 			
 			<div class={ fmt.Sprintf("absolute left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 %s", 
@@ -488,6 +496,15 @@ func getTotalEpisodes(item interface{}) int {
 	}
 }
 
+func getInProduction(item interface{}) bool {
+	switch v := item.(type) {
+	case models.Media:
+		return v.InProduction
+	default:
+		return true // Default to in production for search results
+	}
+}
+
 func isAnime(item interface{}) bool {
 	switch v := item.(type) {
 	case models.Media:
@@ -610,8 +627,9 @@ templ SeasonToggleButton(tmdbID, seasonNumber int, isCompleted bool) {
 	if isCompleted {
 		<button 
 			hx-post={ fmt.Sprintf("/tv/mark-season/%d/%d", tmdbID, seasonNumber) }
-			hx-target="#episodes-container"
-			hx-swap="innerHTML"
+			hx-target="#season-buttons"
+			hx-swap="outerHTML"
+			hx-headers='{"Cache-Control": "no-cache"}'
 			class="w-8 h-8 bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition flex items-center justify-center cursor-pointer"
 			title="Unmark season (click to mark unwatched)"
 		>
@@ -620,8 +638,9 @@ templ SeasonToggleButton(tmdbID, seasonNumber int, isCompleted bool) {
 	} else {
 		<button 
 			hx-post={ fmt.Sprintf("/tv/mark-season/%d/%d", tmdbID, seasonNumber) }
-			hx-target="#episodes-container"
-			hx-swap="innerHTML"
+			hx-target="#season-buttons"
+			hx-swap="outerHTML"
+			hx-headers='{"Cache-Control": "no-cache"}'
 			class="w-8 h-8 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition flex items-center justify-center cursor-pointer"
 			title="Mark season watched"
 		>
@@ -723,32 +742,39 @@ func isSeasonCompleted(seasonNumber int, episodes []models.Episode) bool {
 	return airedEpisodes > 0 && watchedEpisodes == airedEpisodes
 }
 
-// CSS utility functions for DRY class management
-func primaryButtonClass() string {
-	return "bg-primary-600 text-white hover:bg-primary-700 transition cursor-pointer"
+// Consolidated CSS utility functions
+func buttonClass(style, color, size string) string {
+	base := "transition cursor-pointer font-medium"
+	var colorClass, sizeClass string
+	
+	switch style {
+	case "primary":
+		colorClass = "bg-primary-600 text-white hover:bg-primary-700"
+	case "border":
+		colorClass = fmt.Sprintf("bg-transparent border border-%s-600 text-%s-600 hover:bg-%s-50", color, color, color)
+	case "filter-active":
+		colorClass = "bg-primary-600 border-primary-600 text-white"
+	case "filter-inactive":
+		colorClass = "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
+	}
+	
+	switch size {
+	case "full":
+		sizeClass = "w-full px-4 py-3 text-sm"
+	case "small":
+		sizeClass = "px-4 py-2 text-sm"
+	case "filter":
+		sizeClass = "inline-block px-3 py-2 text-xs border"
+	default:
+		sizeClass = "px-4 py-2 text-sm"
+	}
+	
+	return fmt.Sprintf("%s %s %s", base, colorClass, sizeClass)
 }
 
-func primaryButtonFullClass() string {
-	return "w-full bg-primary-600 text-white px-4 py-3 text-sm font-medium hover:bg-primary-700 transition cursor-pointer"
-}
-
-func primaryButtonSmallClass() string {
-	return "bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition cursor-pointer"
-}
-
-func transparentBorderButtonClass(color string) string {
-	return fmt.Sprintf("bg-transparent border border-%s-600 text-%s-600 hover:bg-%s-50 transition cursor-pointer", color, color, color)
-}
-
-func transparentBorderFullClass(color string) string {
-	return fmt.Sprintf("w-full bg-transparent border border-%s-600 text-%s-600 px-4 py-3 text-sm font-medium hover:bg-%s-50 transition cursor-pointer", color, color, color)
-}
-
-func filterButtonActiveClass() string {
-	return "inline-block bg-primary-600 border-primary-600 text-white px-3 py-2 text-xs font-medium transition border cursor-pointer"
-}
-
-func filterButtonInactiveClass() string {
-	return "inline-block bg-white border-gray-300 text-gray-600 hover:border-gray-400 px-3 py-2 text-xs font-medium transition border"
-}
+// Convenience functions using the consolidated helper
+func primaryButtonFullClass() string { return buttonClass("primary", "", "full") }
+func transparentBorderFullClass(color string) string { return buttonClass("border", color, "full") }
+func filterButtonActiveClass() string { return buttonClass("filter-active", "", "filter") }
+func filterButtonInactiveClass() string { return buttonClass("filter-inactive", "", "filter") }
 
