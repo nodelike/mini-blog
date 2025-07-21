@@ -1,0 +1,580 @@
+package templates
+
+import (
+	"fmt"
+	"mini-blog/app/models"
+	"mini-blog/app/services"
+	"strconv"
+	"strings"
+)
+
+templ MediaTracker(media []models.Media, user *models.User) {
+	<div class="space-y-6">
+		<div class="flex justify-between items-center">
+			<h1 class="text-3xl font-bold text-gray-900">Media Tracker</h1>
+		</div>
+		@SearchBar(user)
+		<div id="search-results"></div>
+		<div id="media-list">
+			@MediaGrid(media, user)
+		</div>
+	</div>
+}
+
+templ SearchBar(user *models.User) {
+	<div class="space-y-4">
+		<form class="flex border border-gray-300 bg-white shadow-sm focus-within:border-primary-600 transition-colors" 
+			hx-get="/tv/search" 
+			hx-target="#search-results" 
+			hx-trigger="submit, input delay:300ms from:input[name='query']">
+			
+			if user != nil && user.IsAdmin() {
+				<!-- TMDB Toggle -->
+				<div class="flex border-r border-gray-300">
+					<label class="flex items-center cursor-pointer transition">
+						<input type="checkbox" name="tmdb_mode" value="true" class="hidden tmdb-toggle">
+						<span class="tmdb-toggle-span text-sm font-medium text-gray-600 bg-white px-4 py-3 transition hover:bg-gray-50">TMDB</span>
+					</label>
+				</div>
+				
+				<!-- TV/Movie Dropdown (Only for TMDB) -->
+				<div class="tmdb-controls hidden border-r border-gray-300">
+					@CustomDropdown("search-type", "type", "TV Show", "Select Type", []SelectOption{
+						{Value: "tv", Label: "TV Show"},
+						{Value: "movie", Label: "Movie"},
+					}, "z-20")
+				</div>
+			}
+			
+			<div class="flex-1">
+				<input 
+					type="text" 
+					name="query"
+					id="search-input"
+					placeholder={ func() string { 
+						if user != nil && user.IsAdmin() { 
+							return "Search library or toggle TMDB..." 
+						} else { 
+							return "Search media library..." 
+						} 
+					}() }
+					class="w-full px-6 py-3 border-0 focus:outline-none text-sm placeholder-gray-500 bg-transparent"
+				>
+			</div>
+		</form>
+		
+		<!-- Multi-Select Filter Buttons (Only for Library Mode) -->
+		<div class="library-filters">
+			<div class="flex gap-2">
+				<label class="filter-btn cursor-pointer">
+					<input type="checkbox" name="filters" value="all" checked class="hidden filter-checkbox">
+					<span class={ filterButtonActiveClass() }>All</span>
+				</label>
+				<label class="filter-btn cursor-pointer">
+					<input type="checkbox" name="filters" value="tv" class="hidden filter-checkbox">
+					<span class={ filterButtonInactiveClass() }>TV Shows</span>
+				</label>
+				<label class="filter-btn cursor-pointer">
+					<input type="checkbox" name="filters" value="movie" class="hidden filter-checkbox">
+					<span class={ filterButtonInactiveClass() }>Movies</span>
+				</label>
+				<label class="filter-btn cursor-pointer">
+					<input type="checkbox" name="filters" value="anime-tv" class="hidden filter-checkbox">
+					<span class={ filterButtonInactiveClass() }>Anime TV</span>
+				</label>
+				<label class="filter-btn cursor-pointer">
+					<input type="checkbox" name="filters" value="anime-movie" class="hidden filter-checkbox">
+					<span class={ filterButtonInactiveClass() }>Anime Movies</span>
+				</label>
+			</div>
+		</div>
+	</div>
+}
+
+templ MediaGrid(items interface{}, user *models.User) {
+	switch v := items.(type) {
+	case []models.Media:
+		if len(v) == 0 {
+			@EmptyState("No media found", "Try a different search term.")
+		} else {
+			<div class="space-y-4">
+				<h2 class="text-xl font-semibold text-gray-900">Media Library ({ strconv.Itoa(len(v)) } items)</h2>
+				@MediaCardsGrid() {
+					for _, m := range v {
+						@UnifiedMediaCard(m, user, false)
+					}
+				}
+			</div>
+		}
+	case SearchResults:
+		switch results := v.Results.(type) {
+		case []services.SearchResult:
+			if len(results) == 0 {
+				@EmptyState("No results found", "")
+			} else {
+				<div class="space-y-4">
+					<h3 class="text-lg font-semibold text-gray-900">TMDB Search Results ({ strconv.Itoa(len(results)) } found)</h3>
+					@MediaCardsGrid() {
+						for _, result := range results {
+							@UnifiedMediaCard(result, user, true)
+						}
+					}
+				</div>
+			}
+		case []EnrichedSearchResult:
+			if len(results) == 0 {
+				@EmptyState("No results found", "")
+			} else {
+				<div class="space-y-4">
+					<h3 class="text-lg font-semibold text-gray-900">TMDB Search Results ({ strconv.Itoa(len(results)) } found)</h3>
+					@MediaCardsGrid() {
+						for _, result := range results {
+							if result.InLibrary {
+								@UnifiedMediaCard(result.LocalMedia, user, false)
+							} else {
+								@UnifiedMediaCard(result.SearchResult, user, true)
+							}
+						}
+					}
+				</div>
+			}
+		}
+	}
+}
+
+// SearchResults wrapper to pass media type
+type SearchResults struct {
+	Results   interface{} // Can be []services.SearchResult or []EnrichedSearchResult
+	MediaType string
+}
+
+// EnrichedSearchResult combines TMDB result with local library status
+type EnrichedSearchResult struct {
+	SearchResult services.SearchResult
+	InLibrary    bool
+	LocalMedia   models.Media
+}
+
+// Reusable components for code reduction
+templ EmptyState(title, message string) {
+	<div class="text-center py-16">
+		<h3 class="text-lg font-medium text-gray-900">{ title }</h3>
+		if message != "" {
+			<p class="text-sm text-gray-500">{ message }</p>
+		}
+	</div>
+}
+
+templ MediaCardsGrid() {
+	<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+		{ children... }
+	</div>
+}
+
+templ PosterImage(posterPath, title, altText string) {
+	<div class="aspect-[2/3] relative overflow-hidden">
+		if posterPath != "" {
+			<img 
+				src={ fmt.Sprintf("https://image.tmdb.org/t/p/w500%s", posterPath) } 
+				alt={ altText }
+				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+			/>
+		} else {
+			<div class="w-full h-full bg-gray-200 flex items-center justify-center">
+				<span class="text-gray-400">No Image</span>
+			</div>
+		}
+		{ children... }
+	</div>
+}
+
+templ MediaOverlays(voteAverage float64, voteCount int) {
+	if voteAverage > 0 && voteCount > 0 {
+		<div class="absolute top-3 right-3 bg-black/80 text-white text-xs px-2 py-1 font-bold">
+			★ { fmt.Sprintf("%.1f", voteAverage) } ({ fmt.Sprintf("%d", voteCount) })
+		</div>
+	} else if voteAverage > 0 {
+		<div class="absolute top-3 right-3 bg-black/80 text-white text-xs px-2 py-1 font-bold">
+			★ { fmt.Sprintf("%.1f", voteAverage) }
+		</div>
+	}
+}
+
+
+
+templ StatusBadge(status string) {
+	switch status {
+		case "watching":
+			<span class="inline-block bg-blue-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Watching</span>
+		case "completed":
+			<span class="inline-block bg-green-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Completed</span>
+		case "planned":
+			<span class="inline-block bg-yellow-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Planned</span>
+		case "dropped":
+			<span class="inline-block bg-red-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">Dropped</span>
+		default:
+			<span class="inline-block bg-gray-600 text-white text-xs px-3 py-1 font-bold uppercase tracking-wide">{ strings.Title(status) }</span>
+	}
+}
+
+templ ErrorModal(message string) {
+	<div class="p-8 text-center">
+		<div class="max-w-md mx-auto">
+			<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+				<span class="text-red-600 text-2xl">⚠</span>
+			</div>
+			<h3 class="text-lg font-medium text-gray-900 mb-2">Content Unavailable</h3>
+			<p class="text-gray-600 text-sm">{ message }</p>
+		</div>
+	</div>
+}
+
+templ MediaDetailModal(media *models.Media, seasons []models.Season, episodes []models.Episode, allEpisodes []models.Episode, user *models.User) {
+	<div class="flex h-[85vh] bg-white max-w-full">
+		<div class="flex-shrink-0 p-6 space-y-6">
+			<div class="w-96 aspect-[2/3] relative">
+				if media.PosterPath != "" {
+					<img 
+						src={ fmt.Sprintf("https://image.tmdb.org/t/p/w500%s", media.PosterPath) } 
+						alt={ media.Title }
+						class="w-full h-full object-cover"
+					/>
+				} else {
+					<div class="w-full h-full flex items-center justify-center">
+						<span class="text-gray-400 text-sm">No Image</span>
+					</div>
+				}
+				if media.Status != "" {
+					<div class="absolute top-3 left-3">
+						@StatusBadge(media.Status)
+					</div>
+				}
+			</div>
+			
+			<div class="w-96 space-y-6">
+				<div>
+					<h1 class="text-2xl font-bold text-gray-900 mb-3">{ media.Title }</h1>
+					<div class="flex items-center gap-4 text-sm text-gray-600 mb-4">
+						<span class="bg-gray-900 text-white px-3 py-1 text-xs font-medium uppercase">{ media.Type }</span>
+						if media.IsAnime {
+							<span class="bg-orange-500 text-white px-2 py-1 text-xs font-bold uppercase">Anime</span>
+						}
+						if media.VoteAverage > 0 {
+							<span class="flex items-center gap-1">
+								<span class="text-yellow-500">★</span>
+								{ fmt.Sprintf("%.1f", media.VoteAverage) }
+							</span>
+						}
+						if media.VoteCount > 0 {
+							<span class="text-gray-500">{ fmt.Sprintf("%d votes", media.VoteCount) }</span>
+						}
+					</div>
+					
+					if media.Overview != "" {
+						<p class="text-gray-700 text-sm leading-relaxed">{ media.Overview }</p>
+					}
+				</div>
+				
+				@AdminCTAButtons(media, user)
+			</div>
+		</div>
+		
+		<div class="flex-1 flex flex-col min-w-0">
+			<div class="flex-1 overflow-y-auto">
+				<div class="p-8">
+					
+					if media.Type == "tv" && (len(allEpisodes) > 0 || len(episodes) > 0) {
+						<div id="episode-chart">
+							if len(allEpisodes) > 0 {
+								@EpisodeRatingChart(allEpisodes, getLastWatchedSeason(allEpisodes))
+							} else if len(episodes) > 0 {
+								@EpisodeRatingChart(episodes, 1)
+							}
+						</div>
+					}
+					
+					if len(seasons) > 0 {
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-lg font-semibold text-gray-900 mb-4">Seasons</h3>
+								<div id="season-buttons">
+									@SeasonButtonsContainer(*media, seasons, allEpisodes, user, getLastWatchedSeason(allEpisodes))
+								</div>
+							</div>
+							
+							<div id="episodes-container">
+								if len(episodes) > 0 {
+									@EpisodesListWithWatched(episodes, user)
+								} else {
+									<div class="text-center py-16 text-gray-500">
+										<p class="text-sm">Select a season to view episodes</p>
+									</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ EpisodesListWithWatched(episodes []models.Episode, user *models.User) {
+	if len(episodes) > 0 {
+		<div class="space-y-1">
+			for _, episode := range episodes {
+				@UnifiedEpisodeRow(episode, user)
+			}
+		</div>
+	} else {
+		<div class="text-center py-16 text-gray-500">
+			<p class="text-sm">No episodes found for this season.</p>
+		</div>
+	}
+}
+
+
+
+
+
+
+
+
+
+templ EpisodeRatingChart(allEpisodes []models.Episode, selectedSeason int) {
+	if len(filterEpisodesBySeason(allEpisodes, selectedSeason)) > 1 {
+		<div class="mb-6">
+			<h3 class="text-sm font-medium text-gray-700 mb-3">Episode Ratings - Season { strconv.Itoa(selectedSeason) }</h3>
+			@RatingChart(filterEpisodesBySeason(allEpisodes, selectedSeason))
+		</div>
+	}
+}
+
+templ RatingChart(episodes []models.Episode) {
+	<svg width="100%" height="140" viewBox="0 0 800 140" class="w-full">
+		<defs>
+			<!-- Gradient fill -->
+			<linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+				<stop offset="0%" style="stop-color:#f7374f;stop-opacity:0.3"/>
+				<stop offset="100%" style="stop-color:#f7374f;stop-opacity:0.05"/>
+			</linearGradient>
+			
+			<!-- Vertical grid lines aligned with episodes -->
+			<g id="gridLines">
+				for i := range episodes {
+					<line 
+						x1={ getEpisodeX(i, len(episodes)) } 
+						y1="10" 
+						x2={ getEpisodeX(i, len(episodes)) } 
+						y2="110" 
+						stroke="#f3f4f6" 
+						stroke-width="1"
+					/>
+				}
+				<!-- Horizontal grid lines -->
+				<line x1="40" y1="30" x2="780" y2="30" stroke="#f3f4f6" stroke-width="1"/>
+				<line x1="40" y1="50" x2="780" y2="50" stroke="#f3f4f6" stroke-width="1"/>
+				<line x1="40" y1="70" x2="780" y2="70" stroke="#f3f4f6" stroke-width="1"/>
+				<line x1="40" y1="90" x2="780" y2="90" stroke="#f3f4f6" stroke-width="1"/>
+			</g>
+		</defs>
+		
+		<!-- Grid lines -->
+		<use href="#gridLines"/>
+		
+		<!-- Area fill under curve -->
+		<polygon 
+			points={ generateAreaPoints(episodes) }
+			fill="url(#areaGradient)" 
+		/>
+		
+		<!-- Chart line -->
+		<polyline 
+			points={ generateChartPoints(episodes) }
+			fill="none" 
+			stroke="#f7374f" 
+			stroke-width="3"
+		/>
+		
+		<!-- Data points -->
+		for i, ep := range episodes {
+			if ep.VoteAverage > 0 {
+				<circle 
+					cx={ getEpisodeX(i, len(episodes)) } 
+					cy={ strconv.Itoa(110 - int(ep.VoteAverage*10)) }
+					r="3" 
+					fill="#f7374f"
+					stroke="white"
+					stroke-width="1.5"
+				>
+					<title>Episode { strconv.Itoa(ep.EpisodeNumber) }: { fmt.Sprintf("%.1f", ep.VoteAverage) }/10</title>
+				</circle>
+				
+				<!-- Peak/Valley arrows -->
+				if isPeak(ep, episodes) {
+					<polygon 
+						points={ getPeakArrow(getEpisodeX(i, len(episodes)), 110 - int(ep.VoteAverage*10)) }
+						fill="#f7374f"
+					/>
+				} else if isValley(ep, episodes) {
+					<polygon 
+						points={ getValleyArrow(getEpisodeX(i, len(episodes)), 110 - int(ep.VoteAverage*10)) }
+						fill="#f7374f"
+					/>
+				}
+			}
+		}
+		
+		<!-- Y-axis labels (leftmost) -->
+		<text x="5" y="15" class="text-xs fill-gray-600 font-medium">10</text>
+		<text x="10" y="60" class="text-xs fill-gray-600 font-medium">5</text>
+		<text x="10" y="115" class="text-xs fill-gray-600 font-medium">0</text>
+		
+		<!-- X-axis episode numbers -->
+		for i, ep := range episodes {
+			<text 
+				x={ getEpisodeX(i, len(episodes)) } 
+				y="130" 
+				class="text-xs fill-gray-600 font-medium"
+				text-anchor="middle"
+			>
+				{ strconv.Itoa(ep.EpisodeNumber) }
+			</text>
+		}
+		
+		<!-- Axis lines -->
+		<line x1="40" y1="10" x2="40" y2="110" stroke="#e5e7eb" stroke-width="2"/>
+		<line x1="40" y1="110" x2="780" y2="110" stroke="#e5e7eb" stroke-width="2"/>
+	</svg>
+}
+
+templ SeasonUpdateResponse(media models.Media, seasons []models.Season, episodes []models.Episode, allEpisodes []models.Episode, currentSeason int, user *models.User) {
+	<!-- Update season buttons with out-of-band swap -->
+	<div hx-swap-oob="true" id="season-buttons">
+		@SeasonButtonsContainer(media, seasons, allEpisodes, user, currentSeason)
+	</div>
+	
+	<!-- Update chart with out-of-band swap -->
+	<div hx-swap-oob="true" id="episode-chart">
+		@EpisodeRatingChart(allEpisodes, currentSeason)
+	</div>
+	
+	<!-- Return episodes list as main response -->
+	@EpisodesListWithWatched(episodes, user)
+}
+
+templ SeasonButtonsContainer(media models.Media, seasons []models.Season, allEpisodes []models.Episode, user *models.User, activeSeason int) {
+	<div class="flex flex-wrap gap-3">
+		for _, season := range seasons {
+			if season.SeasonNumber > 0 {
+				@SeasonButton(media, season, season.SeasonNumber == activeSeason, user, allEpisodes)
+			}
+		}
+	</div>
+}
+
+// Helper functions for episode rating chart
+func filterEpisodesBySeason(episodes []models.Episode, season int) []models.Episode {
+	var filtered []models.Episode
+	for _, ep := range episodes {
+		if ep.SeasonNumber == season && ep.VoteAverage > 0 {
+			filtered = append(filtered, ep)
+		}
+	}
+	return filtered
+}
+
+func getEpisodeX(index, total int) string {
+	if total <= 1 {
+		return "410" // Center if only one episode
+	}
+	x := 80 + (index * 660 / (total - 1)) // Distribute evenly from x=80 to x=740
+	return strconv.Itoa(x)
+}
+
+func generateChartPoints(episodes []models.Episode) string {
+	if len(episodes) == 0 {
+		return ""
+	}
+	
+	var points []string
+	for i, ep := range episodes {
+		x := getEpisodeX(i, len(episodes))
+		y := 110 - int(ep.VoteAverage*10) // Scale 0-10 to 110-10
+		points = append(points, fmt.Sprintf("%s,%d", x, y))
+	}
+	return strings.Join(points, " ")
+}
+
+func generateAreaPoints(episodes []models.Episode) string {
+	if len(episodes) == 0 {
+		return ""
+	}
+	
+	var points []string
+	// Start from bottom left
+	firstX := getEpisodeX(0, len(episodes))
+	points = append(points, fmt.Sprintf("%s,110", firstX))
+	
+	// Add all episode points
+	for i, ep := range episodes {
+		x := getEpisodeX(i, len(episodes))
+		y := 110 - int(ep.VoteAverage*10)
+		points = append(points, fmt.Sprintf("%s,%d", x, y))
+	}
+	
+	// End at bottom right
+	lastX := getEpisodeX(len(episodes)-1, len(episodes))
+	points = append(points, fmt.Sprintf("%s,110", lastX))
+	
+	return strings.Join(points, " ")
+}
+
+func isPeak(ep models.Episode, episodes []models.Episode) bool {
+	if len(episodes) < 2 {
+		return false
+	}
+	max, _ := findMinMax(episodes)
+	return ep.VoteAverage == max
+}
+
+func isValley(ep models.Episode, episodes []models.Episode) bool {
+	if len(episodes) < 2 {
+		return false
+	}
+	_, min := findMinMax(episodes)
+	return ep.VoteAverage == min
+}
+
+func getPeakArrow(x string, y int) string {
+	// Small upward arrow above the point
+	xi, _ := strconv.Atoi(x)
+	return fmt.Sprintf("%d,%d %d,%d %d,%d", xi-3, y-8, xi, y-12, xi+3, y-8)
+}
+
+func getValleyArrow(x string, y int) string {
+	// Small downward arrow below the point
+	xi, _ := strconv.Atoi(x)
+	return fmt.Sprintf("%d,%d %d,%d %d,%d", xi-3, y+8, xi, y+12, xi+3, y+8)
+}
+
+func findMinMax(episodes []models.Episode) (float64, float64) {
+	if len(episodes) == 0 {
+		return 0, 0
+	}
+	
+	max := episodes[0].VoteAverage
+	min := episodes[0].VoteAverage
+	
+	for _, ep := range episodes {
+		if ep.VoteAverage > max {
+			max = ep.VoteAverage
+		}
+		if ep.VoteAverage < min {
+			min = ep.VoteAverage
+		}
+	}
+	return max, min
+}
+
+ 

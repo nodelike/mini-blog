@@ -29,6 +29,9 @@ type Config struct {
 		AdminEmail   string `envconfig:"ADMIN_EMAIL"`
 		ResendAPIKey string `envconfig:"RESEND_API_KEY"`
 	}
+	TMDB struct {
+		BearerToken string `envconfig:"TMDB_BEARER_TOKEN" required:"true"`
+	}
 	Env string `envconfig:"ENV" default:"development"`
 }
 

@@ -1,7 +1,7 @@
 package templates
 
 import "mini-blog/app/models"
-import "strings"
+import "strings" 
 import "fmt"
 
 func isActiveRoute(currentPath, linkPath string) string {
@@ -22,11 +22,50 @@ templ Layout(title string, content templ.Component, currentPath string, user ...
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet"/>
 		<script src="https://unpkg.com/htmx.org@1.9.10"></script>
-		<script src="https://unpkg.com/hyperscript.org@0.9.11"></script>
 		<link href="/static/styles.css" rel="stylesheet"/>
 		<style>
 			body, input, textarea, select, button {
 				font-family: 'JetBrains Mono', monospace;
+			}
+			
+			/* Pure CSS Modal */
+			.modal {
+				display: none;
+				position: fixed;
+				inset: 0;
+				background-color: rgba(0, 0, 0, 0.5);
+				z-index: 50;
+				align-items: center;
+				justify-content: center;
+				padding: 1rem;
+			}
+			
+			.modal.show {
+				display: flex;
+			}
+			
+			.modal-content {
+				background: white;
+				max-width: 80rem;
+				width: 100%;
+				max-height: 90vh;
+				overflow-y: auto;
+				box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+				position: relative;
+			}
+			
+			/* Enhanced focus management */
+			.focus-ring:focus {
+				outline: 2px solid var(--color-primary-500);
+				outline-offset: 2px;
+			}
+
+			/* Custom CSS for dropdowns only */
+			.dropdown-menu.show {
+				display: block;
+			}
+			.dropdown-arrow.rotate {
+				transform: rotate(180deg);
 			}
 		</style>
 	</head>
@@ -38,6 +77,7 @@ templ Layout(title string, content templ.Component, currentPath string, user ...
 					<div class="flex items-center space-x-6">
 						<a href="/" class={ isActiveRoute(currentPath, "/") }>Home</a>
 						<a href="/posts" class={ isActiveRoute(currentPath, "/posts") }>Posts</a>
+						<a href="/tv" class={ isActiveRoute(currentPath, "/tv") }>TV</a>
 						if len(user) > 0 && user[0] != nil && user[0].IsAdmin() {
 							<a href="/admin/dashboard" class={ isActiveRoute(currentPath, "/admin") }>Admin</a>
 						}
@@ -61,6 +101,204 @@ templ Layout(title string, content templ.Component, currentPath string, user ...
 				@content
 			}
 		</main>
+		
+		<!-- Simple Media Modal -->
+		if strings.HasPrefix(currentPath, "/tv") {
+			<div id="media-modal" class="modal">
+				<div class="modal-content" onclick="event.stopPropagation()">
+					<!-- Close button -->
+					<button 
+						onclick="closeModal()"
+						class="absolute top-4 right-4 z-10 bg-black text-white w-8 h-8 hover:bg-gray-900 transition flex items-center justify-center text-sm font-bold cursor-pointer"
+						aria-label="Close modal"
+					>
+						✕
+					</button>
+					
+					<div id="modal-content">
+						<!-- Content loaded via HTMX -->
+					</div>
+				</div>
+			</div>
+		}
+		
+		<script>
+			// Modal handling
+			function openModal() {
+				const modal = document.getElementById('media-modal');
+				const modalContent = document.getElementById('modal-content');
+				modalContent.innerHTML = '<div class="p-8 text-center"><div class="inline-block animate-spin h-8 w-8 border-b-2 border-primary-600"></div><p class="mt-4 text-gray-600">Loading...</p></div>';
+				modal.style.display = 'flex';
+			}
+			
+			function closeModal() {
+				const modal = document.getElementById('media-modal');
+				const modalContent = document.getElementById('modal-content');
+				if (modal) {
+					modal.style.display = 'none';
+					if (modalContent) modalContent.innerHTML = '';
+				}
+			}
+			
+			document.addEventListener('click', function(e) {
+				if (e.target.id === 'media-modal') {
+					closeModal();
+				}
+			});
+			
+			document.addEventListener('keydown', function(e) {
+				if (e.key === 'Escape') {
+					const modal = document.getElementById('media-modal');
+					if (modal && modal.style.display === 'flex') {
+						closeModal();
+					}
+				}
+			});
+
+			// TMDB toggle handling only
+			document.addEventListener('change', function(e) {
+				if (e.target.matches('.tmdb-toggle')) {
+					const isChecked = e.target.checked;
+					const span = e.target.nextElementSibling;
+					const tmdbControls = document.querySelector('.tmdb-controls');
+					const libraryFilters = document.querySelector('.library-filters');
+					const searchResults = document.getElementById('search-results');
+					const mediaList = document.getElementById('media-list');
+					const searchInput = document.getElementById('search-input');
+					
+					if (isChecked) {
+						span.className = 'tmdb-toggle-span text-sm font-medium text-white bg-primary-600 px-4 py-3 transition';
+						if (tmdbControls) tmdbControls.classList.remove('hidden');
+						if (libraryFilters) libraryFilters.classList.add('hidden');
+						if (mediaList) mediaList.innerHTML = '';
+					} else {
+						span.className = 'tmdb-toggle-span text-sm font-medium text-gray-600 bg-white px-4 py-3 transition hover:bg-gray-50';
+						if (tmdbControls) tmdbControls.classList.add('hidden');
+						if (libraryFilters) libraryFilters.classList.remove('hidden');
+						if (searchResults) searchResults.innerHTML = '';
+						if (searchInput) searchInput.value = '';
+						
+						resetFiltersToAll();
+						applyFilters();
+					}
+				}
+				
+				// Multi-select filter handling
+				if (e.target.matches('.filter-checkbox')) {
+					const checkbox = e.target;
+					const value = checkbox.value;
+					
+					if (value === 'all') {
+						// When "All" is clicked, uncheck others
+						document.querySelectorAll('.filter-checkbox').forEach(cb => {
+							cb.checked = cb.value === 'all';
+							updateFilterVisual(cb);
+						});
+					} else {
+						// When specific filter is clicked, uncheck "All"
+						const allCheckbox = document.querySelector('.filter-checkbox[value="all"]');
+						if (allCheckbox) {
+							allCheckbox.checked = false;
+							updateFilterVisual(allCheckbox);
+						}
+						updateFilterVisual(checkbox);
+						
+						// If nothing selected, select "All"
+						const hasSelected = Array.from(document.querySelectorAll('.filter-checkbox:not([value="all"])')).some(cb => cb.checked);
+						if (!hasSelected && allCheckbox) {
+							allCheckbox.checked = true;
+							updateFilterVisual(allCheckbox);
+						}
+					}
+					
+					applyFilters();
+				}
+			});
+			
+			function resetFiltersToAll() {
+				document.querySelectorAll('.filter-checkbox').forEach(cb => {
+					cb.checked = cb.value === 'all';
+					updateFilterVisual(cb);
+				});
+			}
+			
+			function updateFilterVisual(checkbox) {
+				const span = checkbox.nextElementSibling;
+				if (checkbox.checked) {
+					span.className = 'inline-block bg-primary-600 border-primary-600 text-white px-3 py-2 text-xs font-medium transition border';
+				} else {
+					span.className = 'inline-block bg-white border-gray-300 text-gray-600 hover:border-gray-400 px-3 py-2 text-xs font-medium transition border';
+				}
+			}
+			
+			function applyFilters() {
+				const checked = Array.from(document.querySelectorAll('.filter-checkbox:checked')).map(cb => cb.value);
+				const params = checked.map(val => `filters=${val}`).join('&');
+				
+				fetch(`/tv/filter?${params}`)
+					.then(response => response.text())
+					.then(html => {
+						const mediaList = document.getElementById('media-list');
+						if (mediaList) {
+							mediaList.innerHTML = html;
+							if (window.htmx) htmx.process(mediaList);
+						}
+					});
+			}
+			
+			// Dropdown functionality
+			document.addEventListener('click', function(e) {
+				if (e.target.closest('.dropdown-toggle')) {
+					e.preventDefault();
+					const toggle = e.target.closest('.dropdown-toggle');
+					const container = toggle.closest('.dropdown-container');
+					const menu = container.querySelector('.dropdown-menu');
+					const arrow = toggle.querySelector('.dropdown-arrow');
+					
+					document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+						if (m !== menu) {
+							m.classList.remove('show');
+							m.closest('.dropdown-container').querySelector('.dropdown-arrow').classList.remove('rotate');
+						}
+					});
+					
+					menu.classList.toggle('show');
+					arrow.classList.toggle('rotate');
+				}
+				
+				if (e.target.matches('.dropdown-option')) {
+					e.preventDefault();
+					const option = e.target;
+					const container = option.closest('.dropdown-container');
+					const selected = container.querySelector('.dropdown-selected');
+					const hiddenInput = container.querySelector('.dropdown-hidden-input');
+					const menu = container.querySelector('.dropdown-menu');
+					const arrow = container.querySelector('.dropdown-arrow');
+					
+					selected.textContent = option.getAttribute('data-label');
+					hiddenInput.value = option.getAttribute('data-value');
+					menu.classList.remove('show');
+					arrow.classList.remove('rotate');
+				}
+				
+				if (!e.target.closest('.dropdown-container')) {
+					document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+						menu.classList.remove('show');
+						menu.closest('.dropdown-container').querySelector('.dropdown-arrow').classList.remove('rotate');
+					});
+				}
+			});
+			
+			// Global tab functionality
+			function setActiveTab(clickedTab) {
+				document.querySelectorAll('[onclick*="setActiveTab"]').forEach(tab => {
+					if (tab.classList.contains('bg-gray-900')) {
+						tab.className = tab.className.replace('bg-gray-900 text-white', 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50');
+					}
+				});
+				clickedTab.className = clickedTab.className.replace('bg-white border border-gray-300 text-gray-700 hover:bg-gray-50', 'bg-gray-900 text-white');
+			}
+		</script>
 	</body>
 	</html>
 }
@@ -88,7 +326,7 @@ templ AdminDashboard(users []models.User, posts []models.Post, stats models.Dash
 				<p class="text-3xl font-bold text-primary-600">{ fmt.Sprintf("%d", stats.PublishedPosts) }</p>
 			</div>
 		</div>
-
+		
 		<!-- Users Section -->
 		<div class="space-y-4">
 			<div class="flex justify-between items-center">
@@ -205,4 +443,15 @@ func getRoleClass(role string) string {
 		return class
 	}
 	return classes[models.RoleUser]
+}
+
+func getRoleName(role string) string {
+	switch role {
+	case models.RoleAdmin:
+		return "Admin"
+	case models.RolePremium:
+		return "Premium"
+	default:
+		return "User"
+	}
 } 

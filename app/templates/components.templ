@@ -1,6 +1,12 @@
 package templates
 
-import "fmt"
+import (
+	"fmt"
+	"mini-blog/app/models"
+	"mini-blog/app/services"
+	"strconv"
+	"time"
+)
 
 
 
@@ -149,4 +155,600 @@ templ VisibilityBadge(visibility string) {
 	}
 }
 
- 
+// Custom Dropdown Component (Native CSS/JS)
+templ CustomDropdown(id, name, selectedValue, placeholder string, options []SelectOption, zIndex string) {
+	<div class="relative dropdown-container" data-dropdown={ id }>
+		<button 
+			type="button"
+			class="dropdown-toggle cursor-pointer flex items-center justify-between w-full px-4 py-3 text-sm bg-transparent border-0 text-gray-700 hover:text-gray-900 focus:outline-none min-w-[120px]"
+			data-dropdown-id={ id }
+		>
+			<span class="dropdown-selected font-medium">{ selectedValue }</span>
+			<svg class="dropdown-arrow w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+			</svg>
+		</button>
+		
+		<div class={ fmt.Sprintf("dropdown-menu absolute hidden mt-1 w-full bg-white shadow-lg border border-gray-200 %s", zIndex) }>
+			for _, option := range options {
+				<div 
+					class="dropdown-option cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+					data-dropdown-id={ id }
+					data-value={ option.Value }
+					data-label={ option.Label }
+				>
+					{ option.Label }
+				</div>
+			}
+		</div>
+		
+		<input type="hidden" name={ name } value={ func() string {
+			for _, option := range options {
+				if option.Label == selectedValue {
+					return option.Value
+				}
+			}
+			return ""
+		}() } class="dropdown-hidden-input"/>
+	</div>
+}
+
+// Search Dropdown Component (specialized for search functionality)
+templ SearchDropdown(selectedType, placeholder string) {
+	<div class="relative" x-data={ fmt.Sprintf("{ open: false, selected: '%s' }", selectedType) }>
+		<button 
+			type="button"
+			@click="open = !open"
+			@click.away="open = false"
+			class="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border-r border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-[120px]"
+		>
+			<span class="truncate" x-text="selected || { placeholder }"></span>
+			<svg class="ml-2 h-3 w-3 text-gray-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+			</svg>
+		</button>
+		
+		<div 
+			x-show="open"
+			x-transition:enter="transition ease-out duration-100"
+			x-transition:enter-start="transform opacity-0 scale-95"
+			x-transition:enter-end="transform opacity-100 scale-100"
+			x-transition:leave="transition ease-in duration-75"
+			x-transition:leave-start="transform opacity-100 scale-100"
+			x-transition:leave-end="transform opacity-0 scale-95"
+			class="absolute z-20 mt-1 left-0 bg-white shadow-lg border border-gray-200 min-w-[160px]"
+		>
+			<div 
+				@click="selected = 'My Library'; open = false; $dispatch('search-type-change', { type: 'library' })"
+				class="cursor-pointer select-none px-3 py-2 hover:bg-gray-50 text-sm"
+				:class="{ 'bg-primary-50 text-primary-700': selected === 'My Library' }"
+			>
+				<span class="block">My Library</span>
+			</div>
+			<div 
+				@click="selected = 'TMDB Search'; open = false; $dispatch('search-type-change', { type: 'tmdb' })"
+				class="cursor-pointer select-none px-3 py-2 hover:bg-gray-50 text-sm"
+				:class="{ 'bg-primary-50 text-primary-700': selected === 'TMDB Search' }"
+			>
+				<span class="block">TMDB Search</span>
+			</div>
+		</div>
+		
+		<!-- Hidden input for search type -->
+		<input type="hidden" name="search_type" :value="selected === 'My Library' ? 'library' : 'tmdb'"/>
+	</div>
+}
+
+// Media Progress Bar Component
+templ ProgressBar(status, mediaType string, progress, total int) {
+	if status != "planned" {
+		<div class="absolute bottom-0 left-0 right-0">
+			if mediaType == "tv" && progress > 0 {
+				<div class="h-2 bg-black/20">
+					<div 
+						class={ fmt.Sprintf("h-full transition-all duration-300 %s", getStatusColor(status)) }
+						style={ fmt.Sprintf("width: %d%%", (progress * 100 / max(total, 1))) }
+					></div>
+				</div>
+			} else if mediaType == "movie" {
+				<div class={ fmt.Sprintf("h-2 %s", getStatusColor(status)) }></div>
+			}
+		</div>
+	}
+}
+
+
+
+// Helper functions
+func getStatusColor(status string) string {
+	switch status {
+	case "completed":
+		return "bg-green-500"
+	case "watching":
+		return "bg-primary-600"
+	case "dropped":
+		return "bg-red-500"
+	case "planned":
+		return "bg-purple-500"
+	default:
+		return "bg-gray-400"
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// Admin CTA Buttons Component
+templ AdminCTAButtons(media *models.Media, user *models.User) {
+	if user != nil && user.IsAdmin() {
+		if media.Status == "" {
+			<!-- TMDB items - add to library -->
+			<form hx-post="/tv/add" hx-target="#modal-content" class="space-y-2">
+				<input type="hidden" name="tmdb_id" value={ strconv.Itoa(media.TMDBID) }/>
+				<input type="hidden" name="type" value={ media.Type }/>
+				<button type="submit" name="status" value="completed" class={ primaryButtonFullClass() }>Mark Complete</button>
+				<button type="submit" name="status" value="planned" class={ transparentBorderFullClass("primary") }>Plan to Watch</button>
+			</form>
+		} else {
+			<!-- Library items - status controls -->
+			<div class="space-y-4">
+				<form hx-post={ fmt.Sprintf("/tv/status/%d", media.TMDBID) } hx-target="#modal-content" class="space-y-2">
+					if media.Status == "planned" {
+						<button type="submit" name="status" value="completed" class={ primaryButtonFullClass() }>Mark Complete</button>
+						<button type="submit" name="status" value="dropped" class={ transparentBorderFullClass("red") }>Drop</button>
+					} else if media.Status == "watching" {
+						<button type="submit" name="status" value="completed" class={ primaryButtonFullClass() }>Mark Complete</button>
+						<button type="submit" name="status" value="dropped" class={ transparentBorderFullClass("red") }>Drop</button>
+						if media.Type == "movie" {
+							<button type="submit" name="status" value="planned" class={ transparentBorderFullClass("gray") }>Mark Unwatched</button>
+						}
+					} else if media.Status == "completed" {
+						<button type="submit" name="status" value="planned" class={ transparentBorderFullClass("primary") }>Mark Unwatched</button>
+					} else if media.Status == "dropped" {
+						<button type="submit" name="status" value="planned" class={ transparentBorderFullClass("primary") }>Add Back to Library</button>
+					}
+				</form>
+				
+				<div class="space-y-2 pt-2 border-t border-gray-200">
+					<div class="flex items-center gap-2">
+						<input 
+							type="checkbox" 
+							checked?={ media.IsAnime }
+							class="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500 cursor-pointer" 
+							hx-post={ fmt.Sprintf("/tv/toggle-anime/%d", media.TMDBID) }
+							hx-target="#modal-content"
+						>
+						<label class="text-sm text-gray-700 cursor-pointer">Is anime?</label>
+					</div>
+					
+					<form hx-delete={ fmt.Sprintf("/tv/remove/%d", media.TMDBID) } hx-confirm="Remove from library?" hx-target="#modal-content">
+						<button type="submit" class={ transparentBorderFullClass("primary") }>
+							Remove from Library
+						</button>
+					</form>
+				</div>
+			</div>
+		}
+	}
+}
+
+// Unified Media Card Component (replaces MediaCard + SearchResultCard)
+templ UnifiedMediaCard(item interface{}, user *models.User, isSearch bool) {
+	<div 
+		class="group relative bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
+		hx-get={ getModalURL(item, isSearch) }
+		hx-target="#modal-content"
+		onclick="openModal()"
+	>
+		@PosterImage(getPosterPath(item), getItemTitle(item), getItemTitle(item)) {
+			@MediaOverlays(getVoteAverage(item), getVoteCount(item))
+			
+			if !isSearch {
+				// Only show anime badge for library items (models.Media with IsAnime=true)
+				switch v := item.(type) {
+				case models.Media:
+					if v.IsAnime {
+						<div class="absolute top-3 left-3 bg-orange-500 text-white text-xs px-2 py-1 font-bold uppercase tracking-wide">
+							Anime
+						</div>
+					}
+				}
+				@ProgressBar(getItemStatus(item), getItemType(item), getProgress(item), getTotalEpisodes(item))
+			}
+			
+			<div class={ fmt.Sprintf("absolute left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 %s", 
+				func() string { 
+					if isSearch || (!isSearch && getItemStatus(item) == "planned") { 
+						return "bottom-0" 
+					} else { 
+						return "bottom-2" 
+					} 
+				}()) }>
+				<h3 class="text-white font-bold text-base line-clamp-2 drop-shadow-lg mb-1">{ getItemTitle(item) }</h3>
+				<div class="flex justify-between items-center text-xs text-white/90">
+					<span class="uppercase font-medium tracking-wide">{ getItemType(item) }</span>
+					if isSearch {
+						<span class="bg-white/20 px-2 py-1 font-medium">{ getItemYear(item) }</span>
+					} else if getProgress(item) > 0 && getItemType(item) != "movie" {
+						<span class="bg-white/20 px-2 py-1 font-medium">{ fmt.Sprintf("%d/%d", getProgress(item), getTotalEpisodes(item)) }</span>
+					} else {
+						<span class="bg-white/20 px-2 py-1 font-medium capitalize">{ getItemStatus(item) }</span>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}
+
+// Helper functions for unified card
+func getModalURL(item interface{}, isSearch bool) string {
+	switch v := item.(type) {
+	case models.Media:
+		return fmt.Sprintf("/tv/modal/%d?type=%s", v.TMDBID, v.Type)
+	case services.SearchResult:
+		mediaType := "tv"
+		if v.Title != "" && v.Name == "" {
+			mediaType = "movie"
+		}
+		return fmt.Sprintf("/tv/modal/%d?type=%s", v.ID, mediaType)
+	default:
+		return ""
+	}
+}
+
+func getPosterPath(item interface{}) string {
+	switch v := item.(type) {
+	case models.Media:
+		return v.PosterPath
+	case services.SearchResult:
+		return v.PosterPath
+	default:
+		return ""
+	}
+}
+
+func getItemTitle(item interface{}) string {
+	switch v := item.(type) {
+	case models.Media:
+		return v.Title
+	case services.SearchResult:
+		if v.Title != "" {
+			return v.Title
+		}
+		return v.Name
+	default:
+		return ""
+	}
+}
+
+func getVoteAverage(item interface{}) float64 {
+	switch v := item.(type) {
+	case models.Media:
+		return v.VoteAverage
+	case services.SearchResult:
+		return v.VoteAverage
+	default:
+		return 0
+	}
+}
+
+func getVoteCount(item interface{}) int {
+	switch v := item.(type) {
+	case models.Media:
+		return v.VoteCount
+	case services.SearchResult:
+		return v.VoteCount
+	default:
+		return 0
+	}
+}
+
+func getItemType(item interface{}) string {
+	switch v := item.(type) {
+	case models.Media:
+		return v.Type
+	case services.SearchResult:
+		if v.Title != "" && v.Name == "" {
+			return "movie"
+		}
+		return "tv"
+	default:
+		return ""
+	}
+}
+
+func getItemStatus(item interface{}) string {
+	switch v := item.(type) {
+	case models.Media:
+		return v.Status
+	default:
+		return ""
+	}
+}
+
+func getProgress(item interface{}) int {
+	switch v := item.(type) {
+	case models.Media:
+		return v.Progress
+	default:
+		return 0
+	}
+}
+
+func getTotalEpisodes(item interface{}) int {
+	switch v := item.(type) {
+	case models.Media:
+		return v.TotalEpisodes
+	default:
+		return 0
+	}
+}
+
+func isAnime(item interface{}) bool {
+	switch v := item.(type) {
+	case models.Media:
+		return v.IsAnime
+	case services.SearchResult:
+		return false // TMDB search results should never show anime badge
+	default:
+		return false
+	}
+}
+
+func getItemYear(item interface{}) string {
+	switch v := item.(type) {
+	case services.SearchResult:
+		if v.ReleaseDate != "" {
+			return v.ReleaseDate[:4]
+		}
+		if v.FirstAirDate != "" {
+			return v.FirstAirDate[:4]
+		}
+	}
+	return "TBA"
+}
+
+// Episode Row Component (handles both aired/unaired + watched/unwatched states)  
+templ UnifiedEpisodeRow(episode models.Episode, user *models.User) {
+	<div id={ fmt.Sprintf("episode-%d-%d", episode.SeasonNumber, episode.EpisodeNumber) } class={ getEpisodeContainerClass(episode) }>
+		<div class="flex h-24">
+			@EpisodeImage(episode)
+			<div class="flex-1 px-6 py-4 flex items-center">
+				<div class="w-full">
+					<div class="flex items-center gap-3 mb-2">
+						@EpisodeCheckbox(episode, user)
+						<div class="flex-1">
+							<h4 class="font-semibold text-gray-900 text-base">
+								{ fmt.Sprintf("%d. %s", episode.EpisodeNumber, episode.Name) }
+							</h4>
+							@EpisodeAirInfo(episode)
+						</div>
+					</div>
+					if episode.Overview != "" {
+						<p class="text-gray-600 text-sm line-clamp-2 leading-relaxed pl-9">{ episode.Overview }</p>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// Episode Image Component  
+templ EpisodeImage(episode models.Episode) {
+	if episode.StillPath != "" {
+		<div class="w-40 h-full flex-shrink-0">
+			<img 
+				src={ fmt.Sprintf("https://image.tmdb.org/t/p/w300%s", episode.StillPath) }
+				alt={ episode.Name }
+				class="w-full h-full object-cover"
+			/>
+		</div>
+	} else {
+		<div class="w-40 h-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+			<span class="text-gray-400 text-xs">No Image</span>
+		</div>
+	}
+}
+
+// Episode Checkbox/Indicator Component
+templ EpisodeCheckbox(episode models.Episode, user *models.User) {
+	if user != nil && user.IsAdmin() && hasAired(episode) {
+		<button 
+			class={ getEpisodeIconClass(episode, true) }
+			hx-post={ fmt.Sprintf("/tv/episodes/toggle/%d/%d/%d", episode.TMDBID, episode.SeasonNumber, episode.EpisodeNumber) }
+			hx-target={ fmt.Sprintf("#episode-%d-%d", episode.SeasonNumber, episode.EpisodeNumber) }
+			hx-swap="outerHTML"
+			title={ getEpisodeTooltip(episode) }
+		>
+			if episode.Watched {
+				<span class="text-white text-xs font-bold">✓</span>
+			}
+		</button>
+	} else {
+		<div class={ getEpisodeIconClass(episode, false) } title={ getUnairedTooltip(episode) }>
+			if episode.Watched {
+				<span class="text-white text-xs font-bold">✓</span>
+			} else if !hasAired(episode) {
+				<span class="text-gray-400 text-xs">⏰</span>
+			}
+		</div>
+	}
+}
+
+// Episode Air Date Info Component
+templ EpisodeAirInfo(episode models.Episode) {
+	if !hasAired(episode) && episode.AirDate != nil {
+		<span class="text-xs text-gray-500 font-medium">
+			{ fmt.Sprintf("Airs in %d days (%s)", getDaysUntilAiring(episode), episode.AirDate.Format("Jan 2, 2006")) }
+		</span>
+	}
+}
+
+// Season Button Component
+templ SeasonButton(media models.Media, season models.Season, isActive bool, user *models.User, allEpisodes []models.Episode) {
+	<div class="flex items-center gap-2">
+		<button 
+			class={ getSeasonButtonClass(isActive) }
+			hx-get={ fmt.Sprintf("/tv/%d/episodes/%d", media.TMDBID, season.SeasonNumber) }
+			hx-target="#episodes-container"
+			onclick="setActiveTab(this)"
+		>
+			Season { strconv.Itoa(season.SeasonNumber) }
+		</button>
+		if user != nil && user.IsAdmin() && media.Status != "" {
+			@SeasonToggleButton(media.TMDBID, season.SeasonNumber, isSeasonCompleted(season.SeasonNumber, allEpisodes))
+		}
+	</div>
+}
+
+// Season Toggle Button Component
+templ SeasonToggleButton(tmdbID, seasonNumber int, isCompleted bool) {
+	if isCompleted {
+		<button 
+			hx-post={ fmt.Sprintf("/tv/mark-season/%d/%d", tmdbID, seasonNumber) }
+			hx-target="#episodes-container"
+			hx-swap="innerHTML"
+			class="w-8 h-8 bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition flex items-center justify-center cursor-pointer"
+			title="Unmark season (click to mark unwatched)"
+		>
+			✓
+		</button>
+	} else {
+		<button 
+			hx-post={ fmt.Sprintf("/tv/mark-season/%d/%d", tmdbID, seasonNumber) }
+			hx-target="#episodes-container"
+			hx-swap="innerHTML"
+			class="w-8 h-8 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition flex items-center justify-center cursor-pointer"
+			title="Mark season watched"
+		>
+		</button>
+	}
+}
+
+// Helper functions for episode components
+func getEpisodeContainerClass(episode models.Episode) string {
+	if !hasAired(episode) {
+		return "bg-gray-50 border border-gray-200"
+	} else if episode.Watched {
+		return "bg-primary-50 border border-primary-200"
+	} else {
+		return "bg-white border border-gray-200"
+	}
+}
+
+func getEpisodeIconClass(episode models.Episode, isClickable bool) string {
+	baseClass := "w-6 h-6 flex items-center justify-center flex-shrink-0 transition"
+	if !hasAired(episode) {
+		return baseClass + " bg-gray-300"
+	} else if episode.Watched {
+		return baseClass + " bg-primary-600"
+	} else if isClickable {
+		return baseClass + " border-2 border-gray-300 cursor-pointer"
+	} else {
+		return baseClass + " border-2 border-gray-300"
+	}
+}
+
+func getEpisodeTooltip(episode models.Episode) string {
+	if episode.Watched {
+		return "Mark as unwatched"
+	} else {
+		return "Mark as watched"
+	}
+}
+
+func getUnairedTooltip(episode models.Episode) string {
+	if !hasAired(episode) && episode.AirDate != nil {
+		return fmt.Sprintf("Airs %s", episode.AirDate.Format("Jan 2, 2006"))
+	}
+	return ""
+}
+
+func getSeasonButtonClass(isActive bool) string {
+	if isActive {
+		return "cursor-pointer px-4 py-2 text-sm font-medium transition bg-gray-900 text-white"
+	} else {
+		return "cursor-pointer px-4 py-2 text-sm font-medium transition bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+	}
+}
+
+func getLastWatchedSeason(allEpisodes []models.Episode) int {
+	lastSeason := 1
+	var lastWatchedTime *time.Time
+	
+	for _, episode := range allEpisodes {
+		if episode.Watched && episode.WatchedAt != nil && episode.SeasonNumber > 0 {
+			if lastWatchedTime == nil || episode.WatchedAt.After(*lastWatchedTime) {
+				lastWatchedTime = episode.WatchedAt
+				lastSeason = episode.SeasonNumber
+			}
+		}
+	}
+	
+	return lastSeason
+}
+
+func hasAired(episode models.Episode) bool {
+	if episode.AirDate == nil {
+		return false
+	}
+	return episode.AirDate.Before(time.Now())
+}
+
+func getDaysUntilAiring(episode models.Episode) int {
+	if episode.AirDate == nil {
+		return 0
+	}
+	duration := time.Until(*episode.AirDate)
+	return int(duration.Hours() / 24)
+}
+
+func isSeasonCompleted(seasonNumber int, episodes []models.Episode) bool {
+	airedEpisodes := 0
+	watchedEpisodes := 0
+	
+	for _, episode := range episodes {
+		if episode.SeasonNumber == seasonNumber && hasAired(episode) {
+			airedEpisodes++
+			if episode.Watched {
+				watchedEpisodes++
+			}
+		}
+	}
+	
+	return airedEpisodes > 0 && watchedEpisodes == airedEpisodes
+}
+
+// CSS utility functions for DRY class management
+func primaryButtonClass() string {
+	return "bg-primary-600 text-white hover:bg-primary-700 transition cursor-pointer"
+}
+
+func primaryButtonFullClass() string {
+	return "w-full bg-primary-600 text-white px-4 py-3 text-sm font-medium hover:bg-primary-700 transition cursor-pointer"
+}
+
+func primaryButtonSmallClass() string {
+	return "bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 transition cursor-pointer"
+}
+
+func transparentBorderButtonClass(color string) string {
+	return fmt.Sprintf("bg-transparent border border-%s-600 text-%s-600 hover:bg-%s-50 transition cursor-pointer", color, color, color)
+}
+
+func transparentBorderFullClass(color string) string {
+	return fmt.Sprintf("w-full bg-transparent border border-%s-600 text-%s-600 px-4 py-3 text-sm font-medium hover:bg-%s-50 transition cursor-pointer", color, color, color)
+}
+
+func filterButtonActiveClass() string {
+	return "inline-block bg-primary-600 border-primary-600 text-white px-3 py-2 text-xs font-medium transition border cursor-pointer"
+}
+
+func filterButtonInactiveClass() string {
+	return "inline-block bg-white border-gray-300 text-gray-600 hover:border-gray-400 px-3 py-2 text-xs font-medium transition border"
+}
+

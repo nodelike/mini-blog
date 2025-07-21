@@ -14,52 +14,6 @@ type BaseModel struct {
 	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 
-// Role constants and configuration
-const (
-	RoleUser    = "user"
-	RoleAdmin   = "admin"
-	RolePremium = "premium"
-)
-
-type RoleConfig struct {
-	Valid bool
-	Name  string
-}
-
-var Roles = map[string]RoleConfig{
-	RoleUser:    {Valid: true, Name: "User"},
-	RoleAdmin:   {Valid: true, Name: "Admin"},
-	RolePremium: {Valid: true, Name: "Premium"},
-}
-
-// RoleNames provides backwards compatibility
-var RoleNames = map[string]string{
-	RoleUser: "User", RoleAdmin: "Admin", RolePremium: "Premium",
-}
-
-// Visibility constants and configuration
-const (
-	VisibilityPublic  = "public"
-	VisibilityPremium = "premium"
-	VisibilityAdmin   = "admin"
-)
-
-type VisibilityConfig struct {
-	Valid bool
-	Name  string
-}
-
-var Visibilities = map[string]VisibilityConfig{
-	VisibilityPublic:  {Valid: true, Name: "Public"},
-	VisibilityPremium: {Valid: true, Name: "Premium"},
-	VisibilityAdmin:   {Valid: true, Name: "Admin"},
-}
-
-// VisibilityNames provides backwards compatibility
-var VisibilityNames = map[string]string{
-	VisibilityPublic: "Public", VisibilityPremium: "Premium", VisibilityAdmin: "Admin",
-}
-
 type Post struct {
 	BaseModel
 	Title      string `json:"title" gorm:"not null" validate:"required,min=1,max=255"`
@@ -108,34 +62,62 @@ func (u *User) IsPremium() bool {
 	return u.Role == RolePremium || u.IsAdmin()
 }
 
-// Helper functions for validation
-func IsValidRole(role string) bool {
-	_, exists := Roles[role]
-	return exists
+type Media struct {
+	BaseModel
+	TMDBID      int        `json:"tmdb_id" gorm:"uniqueIndex;not null"`
+	Type        string     `json:"type" gorm:"not null" validate:"required,oneof=movie tv"`
+	Title       string     `json:"title" gorm:"not null" validate:"required"`
+	Overview    string     `json:"overview" gorm:"type:text"`
+	PosterPath  string     `json:"poster_path"`
+	ReleaseDate *time.Time `json:"release_date"`
+	Genres      string     `json:"genres" gorm:"type:text"` // JSON string of genres
+	Popularity  float64    `json:"popularity"`
+	VoteCount   int        `json:"vote_count"`
+	VoteAverage float64    `json:"vote_average"`
+	IsAnime     bool       `json:"is_anime" gorm:"default:false"`
+
+	// Single user tracking fields
+	Status        string     `json:"status" gorm:"default:planned" validate:"oneof=watching completed planned dropped"`
+	Progress      int        `json:"progress"`       // episodes watched for TV
+	TotalEpisodes int        `json:"total_episodes"` // total episodes (cached from TMDB)
+	Rating        float64    `json:"rating" validate:"min=0,max=10"`
+	Notes         string     `json:"notes" gorm:"type:text"`
+	AddedAt       time.Time  `json:"added_at" gorm:"autoCreateTime"`
+	LastSyncedAt  *time.Time `json:"last_synced_at" gorm:"index"`
 }
 
-func IsValidVisibility(visibility string) bool {
-	_, exists := Visibilities[visibility]
-	return exists
+// Episode model to store complete episode data locally with single-user tracking
+type Episode struct {
+	BaseModel
+	TMDBID        int        `json:"tmdb_id" gorm:"index;not null"` // Show's TMDB ID
+	SeasonNumber  int        `json:"season_number" gorm:"not null"`
+	EpisodeNumber int        `json:"episode_number" gorm:"not null"`
+	Name          string     `json:"name" gorm:"not null"`
+	Overview      string     `json:"overview" gorm:"type:text"`
+	AirDate       *time.Time `json:"air_date"`
+	Runtime       int        `json:"runtime"`    // Runtime in minutes
+	StillPath     string     `json:"still_path"` // Episode screenshot
+	VoteAverage   float64    `json:"vote_average"`
+	VoteCount     int        `json:"vote_count"`
+
+	// Single user tracking fields
+	Watched   bool       `json:"watched" gorm:"default:false"`
+	WatchedAt *time.Time `json:"watched_at"`
 }
 
-// Get role display name
-func GetRoleName(role string) string {
-	if config, exists := Roles[role]; exists {
-		return config.Name
-	}
-	return "Unknown"
+// Season model to store season data locally
+type Season struct {
+	BaseModel
+	TMDBID       int        `json:"tmdb_id" gorm:"index;not null"` // Show's TMDB ID
+	SeasonNumber int        `json:"season_number" gorm:"not null"`
+	Name         string     `json:"name" gorm:"not null"`
+	Overview     string     `json:"overview" gorm:"type:text"`
+	AirDate      *time.Time `json:"air_date"`
+	EpisodeCount int        `json:"episode_count"`
+	PosterPath   string     `json:"poster_path"`
 }
 
-// Get visibility display name
-func GetVisibilityName(visibility string) string {
-	if config, exists := Visibilities[visibility]; exists {
-		return config.Name
-	}
-	return "Unknown"
-}
-
-// DashboardStats represents admin dashboard statistics
+// DashboardStats for admin dashboard
 type DashboardStats struct {
 	TotalUsers     int64
 	PremiumUsers   int64
