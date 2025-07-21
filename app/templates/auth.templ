@@ -22,13 +22,13 @@ templ SignupFormContent(errorMessage ...string) {
 		@FormInput("Password", "password", "", "password", true)
 		@FormInput("Confirm Password", "confirm_password", "", "password", true)
 		
-		<button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+		<button type="submit" class="w-full bg-primary-600 text-white py-2 px-4 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors">
 			Sign Up
 		</button>
 		
 		<p class="text-center text-sm text-gray-600">
 			Already have an account? 
-			<a href="/login" class="text-blue-600 hover:text-blue-700">Login here</a>
+			<a href="/login" class="text-primary-600 hover:text-primary-700">Login here</a>
 		</p>
 	</form>
 }
@@ -53,13 +53,13 @@ templ LoginFormContent(errorMessage ...string) {
 		@FormInput("Email", "email", "", "email", true)
 		@FormInput("Password", "password", "", "password", true)
 		
-		<button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+		<button type="submit" class="w-full bg-primary-600 text-white py-2 px-4 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors">
 			Login
 		</button>
 		
 		<p class="text-center text-sm text-gray-600">
 			Don't have an account? 
-			<a href="/signup" class="text-blue-600 hover:text-blue-700">Sign up here</a>
+			<a href="/signup" class="text-primary-600 hover:text-primary-700">Sign up here</a>
 		</p>
 	</form>
 }
@@ -103,12 +103,12 @@ templ OTPFormContent(email string, errorMessage ...string) {
 				required
 				maxlength="6"
 				pattern="[0-9]{6}"
-				class="w-full px-3 py-2 text-center text-2xl font-mono border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="w-full px-3 py-2 text-center text-2xl font-mono border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
 				placeholder="123456"
 			/>
 		</div>
 		
-		<button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+		<button type="submit" class="w-full bg-primary-600 text-white py-2 px-4 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors">
 			Verify Email
 		</button>
 		
@@ -118,7 +118,7 @@ templ OTPFormContent(email string, errorMessage ...string) {
 				type="button"
 				hx-post="/resend-otp"
 				hx-target="#resend-message"
-				class="text-blue-600 hover:text-blue-700 text-sm font-medium"
+				class="text-primary-600 hover:text-primary-700 text-sm font-medium"
 			>
 				Resend Code
 			</button>
