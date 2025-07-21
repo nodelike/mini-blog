@@ -575,3 +575,10 @@ func (h *BaseHandler) BackgroundSync() {
 		}
 	}
 }
+
+// syncInProduction: Helper to sync production status from TMDB
+func (h *BaseHandler) syncInProduction(media *models.Media) {
+	if freshMedia, err := h.tmdbService.GetDetails(media.TMDBID, media.Type); err == nil {
+		media.InProduction = freshMedia.InProduction
+	}
+}

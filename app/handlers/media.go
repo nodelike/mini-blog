@@ -166,7 +166,14 @@ func (h *BaseHandler) MediaAdd(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add to tracker")
 	}
 
-	return h.htmxRedirect(c, "/tv")
+	// Force immediate sync to ensure correct InProduction status in library
+	h.SyncMedia(tmdbID)
+
+	// Force complete page reload to show fresh data
+	return c.HTML(http.StatusOK, `<script>
+		closeModal();
+		window.location.replace('/tv');
+	</script>`)
 }
 
 func (h *BaseHandler) MediaUpdate(c echo.Context) error {
@@ -327,6 +334,7 @@ func (h *BaseHandler) MediaUpdateByTMDB(c echo.Context) error {
 		}
 
 		media.Status = newStatus
+		h.syncInProduction(media)
 
 		// If status is set to completed, mark all aired episodes as watched
 		if newStatus == "completed" && media.Type == "tv" {
@@ -351,6 +359,7 @@ func (h *BaseHandler) MediaStatusUpdate(c echo.Context) error {
 		}
 
 		media.Status = newStatus
+		h.syncInProduction(media)
 
 		// Smart episode management for TV shows
 		if media.Type == "tv" {
